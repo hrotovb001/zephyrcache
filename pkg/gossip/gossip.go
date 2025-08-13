@@ -1,4 +1,3 @@
-
 package gossip
 
 // Placeholder for gossip-based membership and phi accrual failure detector.

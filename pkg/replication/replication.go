@@ -1,4 +1,3 @@
-
 package replication
 
 // Placeholder for hinted handoff and Merkle anti-entropy sync.
