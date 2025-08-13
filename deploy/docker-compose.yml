@@ -1,3 +1,8 @@
+# ---- TODOs (bite-size next steps) ----
+# TODO(ryan): set distinct NODE_ID/ADDR env for each service
+# TODO(ryan): mount config file with node list; expose 8080
+# TODO(ryan): add healthcheck to hit /health
+# ---- end TODOs ----
 services:
   node1:
     build:

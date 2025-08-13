@@ -12,6 +12,15 @@ import (
 	"github.com/ryandielhenn/zephyrcache/pkg/kv"
 )
 
+// --- TODOs (bite-size next steps) ---
+// TODO(ryan): wire config: parse nodes, self ID, replicas from env/JSON
+// TODO(ryan): initialize ring, store, router; start HTTP server
+// TODO(ryan): register /debug/pprof and Prometheus metrics
+// TODO(ryan): handlers: PUT/GET/DELETE /v1/cache/{key}?ttl=...
+// TODO(ryan): validate key/ttl/value size; return appropriate status codes
+// TODO(ryan): structured logging: op, key hash, duration, nodeID
+// --- end TODOs ---
+
 type server struct {
 	kv *kv.Store
 }
