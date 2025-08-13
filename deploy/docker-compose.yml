@@ -1,32 +1,50 @@
-# ---- TODOs (bite-size next steps) ----
-# TODO(ryan): set distinct NODE_ID/ADDR env for each service
-# TODO(ryan): mount config file with node list; expose 8080
-# TODO(ryan): add healthcheck to hit /health
-# ---- end TODOs ----
 services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.15
+    command: >
+      /usr/local/bin/etcd
+      --name etcd0
+      --advertise-client-urls http://0.0.0.0:2379
+      --listen-client-urls http://0.0.0.0:2379
+      --initial-advertise-peer-urls http://0.0.0.0:2380
+      --listen-peer-urls http://0.0.0.0:2380
+      --initial-cluster etcd0=http://0.0.0.0:2380
+      --initial-cluster-state new
+    ports:
+      - "2379:2379"
+
   node1:
     build:
       context: ..
-      dockerfile: Dockerfile
-    ports: ["8081:8080"]
+      dockerfile: Dockerfile   # adjust if your filename differs
     environment:
-      - NODE_ID=node1
-      - ADDR=:8080
+      - ETCD_ENDPOINTS=http://etcd:2379
+      - CLUSTER=dev
+      - SELF_ID=node1
+      - SELF_ADDR=http://node1:8080
+    depends_on: [etcd]
+    ports: ["8080:8080"]
 
   node2:
     build:
       context: ..
       dockerfile: Dockerfile
-    ports: ["8082:8080"]
     environment:
-      - NODE_ID=node2
-      - ADDR=:8080
+      - ETCD_ENDPOINTS=http://etcd:2379
+      - CLUSTER=dev
+      - SELF_ID=node2
+      - SELF_ADDR=http://node2:8080
+    depends_on: [etcd]
+    ports: ["8081:8080"]
 
   node3:
     build:
       context: ..
       dockerfile: Dockerfile
-    ports: ["8083:8080"]
     environment:
-      - NODE_ID=node3
-      - ADDR=:8080
+      - ETCD_ENDPOINTS=http://etcd:2379
+      - CLUSTER=dev
+      - SELF_ID=node3
+      - SELF_ADDR=http://node3:8080
+    depends_on: [etcd]
+    ports: ["8082:8080"]
