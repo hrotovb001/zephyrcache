@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,8 +9,10 @@ import (
 	"os"
 	"strconv"
 	"time"
+
 	"go.etcd.io/etcd/client/v3"
 
+	"github.com/ryandielhenn/zephyrcache/discovery"
 	"github.com/ryandielhenn/zephyrcache/pkg/kv"
 	"github.com/ryandielhenn/zephyrcache/pkg/ring"
 )
@@ -100,6 +103,16 @@ func main() {
 		log.Fatal(err)
 	}
 	defer cli.Close()
+	id := os.Getenv("SELF_ID")
+	addr := os.Getenv("SELF_ADDR")
+	
+	leaseId, err := discovery.RegisterNode(cli, id, addr, 10)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cli.Revoke(context.TODO(), leaseId)
+
+	//TODO watch for peers
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", s.healthz)
@@ -117,7 +130,7 @@ func main() {
 		}
 	})
 
-	addr := ":8080"
+	addr = ":8080"
 	fmt.Println("ZephyrCache server listening on", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatal(err)
