@@ -34,7 +34,19 @@ func RegisterNode(cli *clientv3.Client, id, addr string, ttl int64) (clientv3.Le
     }
 	
 	log.Printf("Sending keepalive to lease %d", lease.ID)
-    go cli.KeepAlive(context.TODO(), lease.ID)
+	ch, err := cli.KeepAlive(context.TODO(), lease.ID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	go func() {
+		for resp := range ch {
+			if resp == nil {
+            	log.Printf("keepalive channel closed")
+            	return
+        	}
+        	log.Printf("got keepalive response: leaseID=%d TTL=%d", resp.ID, resp.TTL)
+		}
+	}()
 
     return lease.ID, nil
 }
