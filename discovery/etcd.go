@@ -21,16 +21,19 @@ func NewClient(endpoints []string) (*clientv3.Client, error) {
 }
 
 func RegisterNode(cli *clientv3.Client, id, addr string, ttl int64) (clientv3.LeaseID, error) {
+	log.Printf("RegisterNode - granting lease")
 	lease, err := cli.Grant(context.TODO(), ttl)
 	if err != nil {
 		return 0, err
 	}
 	key := fmt.Sprintf("/zephyr/nodes/%s", id)
+	log.Printf("RegisterNode - putting key - %s : addr - %s with lease - %d", key, addr, lease.ID)
     _, err = cli.Put(context.TODO(), key, addr, clientv3.WithLease(lease.ID))
     if err != nil {
         return 0, err
     }
-
+	
+	log.Printf("Sending keepalive to lease %d", lease.ID)
     go cli.KeepAlive(context.TODO(), lease.ID)
 
     return lease.ID, nil
@@ -52,9 +55,14 @@ func GetPeers(cli *clientv3.Client, prefix string) (map[string]string, error) {
 
 
 func WatchPeers(cli *clientv3.Client, callback func(map[string]string)) {
-	//TODO func WatchPeers
 	const prefix = "/zephyr/nodes/"
-	peers, _ := GetPeers(cli, prefix)
+	log.Printf("[WATCH] starting WatchPeers on prefix=%q", prefix)
+	peers, err := GetPeers(cli, prefix)
+	if err != nil {
+		log.Printf("[WATCH] GetPeers failed: %v", err)
+	} else {
+        log.Printf("[WATCH] bootstrap snapshot: %d peers", len(peers))
+    }
 	callback(maps.Clone(peers))
 
 	var(
@@ -62,7 +70,9 @@ func WatchPeers(cli *clientv3.Client, callback func(map[string]string)) {
 	)
 
 	go func() {
+		log.Printf("[WATCH] establishing watch on %q", prefix)
 		watchChan := cli.Watch(context.TODO(), prefix, clientv3.WithPrefix())
+		log.Printf("[WATCH] watch established")
 		for wresp := range watchChan {
 			//1. 	Check if there was an error with the watch
 			if wresp.Err() != nil {

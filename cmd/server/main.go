@@ -95,10 +95,12 @@ func main() {
 	store := kv.NewStore(64 << 20) // 64MB default cap for MVP
 	s := &server{kv: store}
 	// TODO populate s.peers using etcd client
+	log.Printf("[Boot] creating etcd client")
 	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{"localhost:2379"},
+		Endpoints:   []string{"http://etcd:2379"},
 		DialTimeout: 5 * time.Second,
 	})
+	log.Printf("[Boot] created etcd client with endpoints, %s", cli.Endpoints())
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -106,18 +108,21 @@ func main() {
 	id := os.Getenv("SELF_ID")
 	addr := os.Getenv("SELF_ADDR")
 	
+	log.Printf("[Boot] registering, %s : %s with etcd", id, addr)
 	leaseId, err := discovery.RegisterNode(cli, id, addr, 10)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer cli.Revoke(context.TODO(), leaseId)
 
+	log.Printf("[Boot] before watch peers")
 	discovery.WatchPeers(cli, func(peers map[string]string) {
 		//TODO placeholder until I figure out how to respond to watches
 		for id, addr := range(peers) {
-			fmt.Printf("%s -> %s\n", id, addr)
+			log.Printf("[WatchPeers Callback] %s -> %s\n", id, addr)
 		}
 	})
+	log.Printf("[BOOT] after WatchPeers")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", s.healthz)

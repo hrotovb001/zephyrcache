@@ -20,3 +20,5 @@ go.work
 
 # Docker
 .env
+
+.DS_Store
