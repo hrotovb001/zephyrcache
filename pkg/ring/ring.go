@@ -21,7 +21,7 @@ type HashRing struct {
 
 func New(replicas int, h Hasher) *HashRing {
 	if replicas <= 0 { replicas = 128 }
-	if h == nil { h = fnv32a }
+	if h == nil { h = FNV32a }
 	return &HashRing{
 		replicas: replicas,
 		hash:     h,
@@ -100,7 +100,7 @@ func (r *HashRing) Addr(nodeID string) (string, bool) {
 	return a, ok
 }
 
-func fnv32a(b []byte) uint32 {
+func FNV32a(b []byte) uint32 {
 	h := fnv.New32a()
 	_, _ = h.Write(b)
 	return h.Sum32()

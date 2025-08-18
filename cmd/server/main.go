@@ -93,7 +93,11 @@ func (s *server) info(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	store := kv.NewStore(64 << 20) // 64MB default cap for MVP
-	s := &server{kv: store}
+	r := ring.New(128, ring.FNV32a)
+	s := &server{
+		kv: store,
+		ring: r,
+	}
 	// TODO populate s.peers using etcd client
 	log.Printf("[Boot] creating etcd client")
 	cli, err := clientv3.New(clientv3.Config{
