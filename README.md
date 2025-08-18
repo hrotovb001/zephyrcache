@@ -5,7 +5,8 @@
 
 ## Features (planned)
 - Consistent hashing ring with virtual nodes
-- Gossip-based membership + phi accrual failure detector
+- Gossip/etcd-based membership
+- phi accrual failure detector
 - Tunable consistency (R/W quorums), replication factor
 - Hinted handoff, read-repair, anti-entropy (Merkle)
 - TTL + LRU eviction
@@ -26,3 +27,7 @@ curl localhost:8080/kv/foo #TODO coordinator/proxy If the node is not the owner,
 - Week 2: Ring + replication factor, quorum reads/writes.
 - Week 3: Gossip membership, hinted handoff, rebalancing hooks.
 - Week 4: Anti-entropy (Merkle), chaos tests, dashboards.
+
+## etcd Lease & KeepAlive Sequence
+
+![etcd leases diagram](docs/etcd_leases_sequence_clear_labels.png)
