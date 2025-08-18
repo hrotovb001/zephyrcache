@@ -30,6 +30,14 @@ func New(replicas int, h Hasher) *HashRing {
 	}
 }
 
+func (r *HashRing) Clear() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.points = r.points[:0]
+	r.owners = make(map[uint32]string)
+	r.nodes = make(map[string]string)
+}
+
 func (r *HashRing) Add(nodeID, addr string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

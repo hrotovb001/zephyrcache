@@ -124,15 +124,19 @@ func main() {
 
 	log.Printf("[Boot] before watch peers")
 	discovery.WatchPeers(cli, func(peers map[string]string) {
+		s.ring.Clear()
 		for id, addr := range(peers) {
 			log.Printf("[WatchPeers Callback] %s -> %s\n", id, addr)
+			s.ring.Add(id, addr)
 		}
+
 	})
 	log.Printf("[BOOT] after WatchPeers")
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", s.healthz)
 	mux.HandleFunc("/info", s.info)
+	// Need to use ring here to route to correct node
 	mux.HandleFunc("/kv/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPut, http.MethodPost:
