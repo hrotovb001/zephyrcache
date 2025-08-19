@@ -54,6 +54,8 @@ func (s *server) info(w http.ResponseWriter, _ *http.Request) {
 	w.Write(data)
 }
 
+// normalizeHostPort cuts the http:// https:// prefixes from the input address
+// adds a default port
 func normalizeHostPort(addr, defPort string) string {
 	if rest, ok := strings.CutPrefix(addr, "http://"); ok {
 		addr = rest
@@ -68,6 +70,7 @@ func normalizeHostPort(addr, defPort string) string {
 	return addr + ":" + defPort
 }
 
+// ownerForKey looks up the owner for a key and normalizes the address of the owner
 func (s *server) ownerForKey(key string) (ownerHP, selfHP string, ok bool) {
     ownerID := s.ring.Lookup([]byte(key))        // e.g. "node3"
     ownerAddr, ok := s.ring.Addr(ownerID)        // e.g. "node3:8080" (what you stored)
@@ -75,6 +78,7 @@ func (s *server) ownerForKey(key string) (ownerHP, selfHP string, ok bool) {
     return normalizeHostPort(ownerAddr, "8080"), normalizeHostPort(s.addr, "8080"), true
 }
 
+// forward forwards a http request to the node that owns the key
 func (s *server) forward(w http.ResponseWriter, req *http.Request, owner string) {
 	if owner == "" { http.Error(w, "no owner for key", http.StatusServiceUnavailable); return }
 
@@ -122,7 +126,6 @@ func (s *server) put(w http.ResponseWriter, req *http.Request) {
 	if !ok { http.Error(w, "no owner for key", http.StatusServiceUnavailable); return }
 
 
-	// if this node doesnt own the key forward the request
 	if owner != self {
 		log.Printf("[Forward PUT] key=%q owner=%q self=%q", key, owner, self)
 		s.forward(w, req, owner)
@@ -155,7 +158,6 @@ func (s *server) get(w http.ResponseWriter, req *http.Request) {
 	owner, self, ok := s.ownerForKey(key)
     if !ok { http.Error(w, "no owner for key", http.StatusServiceUnavailable); return }
 
-	// if this node doesn't own the key forward the request
 	if owner != self {
 		log.Printf("[Forward GET] key=%q owner=%q self=%q", key, owner, self)
 		s.forward(w, req, owner)
@@ -178,7 +180,6 @@ func (s *server) del(w http.ResponseWriter, req *http.Request) {
 	owner, self, ok := s.ownerForKey(key)
     if !ok { http.Error(w, "no owner for key", http.StatusServiceUnavailable); return }
 
-	// if this node doesn't own the key forward the request
 	if owner != self {
 		log.Printf("[Forward DEL] key=%q owner=%q self=%q", key, owner, self)
 		s.forward(w, req, owner)
