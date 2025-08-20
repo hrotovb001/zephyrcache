@@ -70,12 +70,14 @@ func (s *Store) Get(key string) ([]byte, bool) {
 	return nil, false
 }
 
-func (s *Store) Delete(key string) {
+func (s *Store) Delete(key string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if el, ok := s.data[key]; ok {
 		s.removeElement(el)
+		return true
 	}
+	return false
 }
 
 func (s *Store) Len() int {
