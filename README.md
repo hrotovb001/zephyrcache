@@ -1,4 +1,3 @@
-
 # ZephyrCache — a self-healing distributed cache (MVP)
 # Started Fall 2025
 **Status:** Scaffold. First milestone compiles & runs a single-node HTTP API with pluggable ring/membership stubs.
