@@ -27,6 +27,7 @@ curl localhost:8080/kv/foo #TODO coordinator/proxy If the node is not the owner,
 ### Done
 - Core KV store with TTL + LRU eviction
 - HTTP API and basic metrics
+- etcd-backed membership via leases (ephemeral keys, watch-based join/leave)
 
 ### In Progress
 - Cluster routing via consistent hash ring and request forwarding
