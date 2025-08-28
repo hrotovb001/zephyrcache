@@ -84,3 +84,47 @@ Notes:
 - Peers watch the prefix (/zephyrcache/members/) to detect joins/leaves promptly.
 ```
 
+## Consistent Hash Ring
+```text
+CONSISTENT HASH RING (keys map to the first node clockwise from hash(k))
+
+        ┌───────────(t1)───────────┐
+        ▼                           │
+     [N1]                         [N2]
+        │                           ▼
+        │                           (t2)
+        │                           │
+       (t4)                        [N3]
+        ▲                           │
+     [N4]                          (t3)
+        │                           ▲
+        └───────────(wrap)──────────┘
+
+- t1..t4 are token positions on the ring (0..2^m-1).
+- hash(k) = point p on the ring.
+- Owner(k) = first node clockwise from p.
+
+Example:
+  hash("user:42") = position between t2 and t3 → Owner = N3.
+```
+
+## Request Forwarding
+```text
+REQUEST FORWARDING (no replication yet; only owner persists the write)
+
+Client                      Ingress Node (N2)                Owner (N3)
+  |                                 |                           |
+  |-- HTTP PUT /kv/k v ------------>|                           |
+  |                                 |-- ring.successor(hash(k))→|
+  |                                 |   → owner = N3            |
+  |                                 |-- RPC Write(k,v) -------->|
+  |                                 |                           |-- write to local store
+  |                                 |                           |   (TTL/LRU/metrics)
+  |                                 |<--------- OK -------------|
+  |<--------------------- 200 OK ----|                           |
+
+Reads (GET) are similar:
+  - Ingress computes owner via ring.successor(hash(k)).
+  - If ingress == owner: serve locally.
+  - Else: forward GET to owner and proxy the response back to client.
+```
