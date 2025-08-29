@@ -1,23 +1,22 @@
+BINARY=zephyrcache
+PKG=./...
 
-    BINARY=zephyrcache
-    PKG=./...
+.PHONY: build run test fmt lint proto
 
-    .PHONY: build run test fmt lint proto
-
-    build:
+build:
 	go build -o bin/$(BINARY) ./cmd/server
 
-    run: build
+run: build
 	./bin/$(BINARY)
 
-    bench:
+bench:
 	go run ./cmd/bench
 
-    test:
+test:
 	go test $(PKG) -v
 
-    fmt:
+fmt:
 	gofmt -w .
 
-    proto:
+proto:
 	@echo "Proto generation not wired yet. Install buf/protoc & generate stubs into ./proto."
