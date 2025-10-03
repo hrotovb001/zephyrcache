@@ -14,11 +14,37 @@
 
 ## Quick start
 ```bash
-# inside the deploy folder
-docker compose up # build and run nodes
+# Run with default configuration (1 cache node, 1 etcd node, default docker network)
+docker-compose -f deploy/docker-compose.yml up -d
+
+# Or scale to more nodes
+docker-compose -f deploy/docker-compose.yml up -d --scale node=10
+
+# Test the cluster
 curl localhost:8080/healthz
 curl -X PUT localhost:8080/kv/foo -d 'bar'
-curl localhost:8080/kv/foo #TODO coordinator/proxy If the node is not the owner, it forwards the request to the correct node internally and returns the response.
+curl localhost:8080/kv/foo
+```
+
+## Viewing logs
+```bash
+# View logs from all nodes in real-time
+docker-compose -f deploy/docker-compose.yml logs -f node
+
+# View logs from all services (etcd + nodes)
+docker-compose -f deploy/docker-compose.yml logs -f
+
+# View logs from a specific container
+docker logs -f deploy-node-1
+
+# View last 100 lines
+docker-compose -f deploy/docker-compose.yml logs --tail 100 node
+```
+
+## Stopping the cluster
+```bash
+# Stop all containers
+docker-compose -f deploy/docker-compose.yml down
 ```
 
 ## Roadmap
@@ -27,54 +53,19 @@ curl localhost:8080/kv/foo #TODO coordinator/proxy If the node is not the owner,
 - Core KV store with TTL + LRU eviction
 - HTTP API and basic metrics
 - etcd-backed membership via leases (ephemeral keys, watch-based join/leave)
-
-### In Progress
 - Cluster routing via consistent hash ring and request forwarding
-- Next: replication factor (N), quorum reads/writes (R/W), hinted handoff, read repair
+
+### Next
+- Gossip-based membership and failure detection
 
 ### Not Started
-- Gossip-based membership and failure detection
+- Replication factor (N), quorum reads/writes (R/W), hinted handoff, read repair
 - Rebalancing hooks for node joins/leaves
 - Anti-entropy sync (Merkle trees)
 - Chaos testing, dashboards, and alerts
 
-## etcd Lease & KeepAlive Sequence
-```text
-ETCD LEASE LIFECYCLE (for membership keys like /zephyrcache/members/<node>)
-
-Client (node1)                 etcd cluster                       Peers / Watchers
-      |                              |                                    |
-      |-- LeaseGrant(TTL=10s) ------>|                                    |
-      |<-- LeaseGrantResp -----------|  (leaseID=0x1234, TTL=10s)         |
-      |                              |                                    |
-      |-- Put(/members/node1,        |                                    |
-      |         value=...,           |                                    |
-      |         lease=0x1234) ------>|                                    |
-      |<------------- OK ------------|                                    |
-      |                              |                                    |
-      |==== bi-di stream: LeaseKeepAlive(0x1234) ====                     |
-      |                              |                                    |
-      |-- KeepAlive(0x1234) -------->|                                    |
-      |<-- KeepAliveResp(TTL≈10s) ---|   (repeat every ~TTL/3)            |
-      |-- KeepAlive(0x1234) -------->|                                    |
-      |<-- KeepAliveResp(TTL≈10s) ---|                                    |
-      |   ...continues while healthy...                                   |
-      |                              |                                    |
-      |   (node crash / network partition / process exit)                 |
-      |   X                          |                                    |
-      |                              |-- TTL counts down ---------------->|
-      |                              |-- EXPIRE lease 0x1234 ------------>|
-      |                              |-- DELETE /members/node1 ---------->|
-      |                              |== WATCH EVENT ====================>|  notify: DELETE
-      |                              |   (/members/node1, reason=EXPIRED) |  peers react (evict, rebalance)
-      |                              |                                    |
-      |                              |                                    |
-      |   (optional graceful shutdown)                                    |
-      |-- LeaseRevoke(0x1234) ------>|                                    |
-      |<------------- OK ------------|-- DELETE /members/node1 ---------->|
-      |                              |== WATCH EVENT ====================>|  notify: DELETE (reason=REVOKED)
-      |                              |                                    |
-```
+## etcd Lease Sequence
+![etcd Lease Sequence](diagrams/etcd-lease-sequence/diagram.png)
 ```markdown
 Notes:
 - Attach all ephemeral membership/heartbeat keys to the same lease (e.g., leaseID 0x1234).
@@ -84,21 +75,9 @@ Notes:
 ```
 
 ## Consistent Hash Ring
+![Consistent Hashing Example](diagrams/consistent_hashing/diagram.png)
+
 ```text
-CONSISTENT HASH RING (keys map to the first node clockwise from hash(k))
-
-        ┌───────────(t1)────────────┐
-        ▲                           │
-     [N1]                         [N2]
-        │                           ▼
-        │                        (t2) • p = hash("user:42")
-        │                           │        (between t2 and t3)
-       (t4)                         │
-        ▲                           │
-     [N4]                        [N3]  ← Owner("user:42")
-        │                           ▼
-        └────────────(t3)───────────┘   (wrap to t1/N1)
-
 - t1..t4 are token positions on the ring (0..2^m-1).
 - hash(k) = point p on the ring.
 - Owner(k) = first node clockwise from p.
@@ -108,22 +87,4 @@ Example:
 ```
 
 ## Request Forwarding
-```text
-REQUEST FORWARDING (no replication yet; only owner persists the write)
-
-Client                      Ingress Node (N2)                Owner (N3)
-  |                                 |                           |
-  |-- HTTP PUT /kv/k v ------------>|                           |
-  |                                 |-- ring.successor(hash(k))→|
-  |                                 |   → owner = N3            |
-  |                                 |-- RPC Write(k,v) -------->|
-  |                                 |                           |-- write to local store
-  |                                 |                           |   (TTL/LRU/metrics)
-  |                                 |<--------- OK -------------|
-  |<--------------------- 200 OK ----|                           |
-
-Reads (GET) are similar:
-  - Ingress computes owner via ring.successor(hash(k)).
-  - If ingress == owner: serve locally.
-  - Else: forward GET to owner and proxy the response back to client.
-```
+![Request Forwarding](diagrams/request-forwarding/diagram.png)
