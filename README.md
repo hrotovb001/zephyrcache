@@ -48,28 +48,36 @@ docker-compose -f deploy/docker-compose.yml down
 
 ## etcd Lease Sequence
 ![etcd Lease Sequence](diagrams/etcd-lease-sequence/diagram.png)
-```markdown
+
 Notes:
 - Attach all ephemeral membership/heartbeat keys to the same lease (e.g., leaseID 0x1234).
 - KeepAlive is a long-lived gRPC stream; send pings around TTL/3 to maintain headroom.
 - On lease expiry or revoke, etcd deletes all keys bound to that lease and emits watch events.
 - Peers watch the prefix (/zephyrcache/members/) to detect joins/leaves promptly.
-```
+
 
 ## Request Forwarding
+
+Ideally the client shouldn't have to know where data lives in the cache.
+	•	Client sends request to Node A
+	•	Node A doesn’t own that key
+	•	Node A forwards to Node B (the owner)
+This creates the question: “How does Node A know who owns the key?”
+
 ![Request Forwarding](diagrams/request-forwarding/diagram.png)
 
-## Consistent Hash Ring
-![Consistent Hashing Example](diagrams/consistent_hashing/diagram.png)
-
-```markdown
-Notes:
+## Consistent Hashing
+The above scenario is acheived using a consistent hashing mechanism:
 - t1..t4 are token positions on the ring (0..2^m-1).
 - hash(k) = point p on the ring.
 - Owner(k) = first node clockwise from p.
 Example:
   hash("user:42") = position between t2 and t3 → Owner = N3.
-```
+
+![Consistent Hashing Example](diagrams/consistent_hashing/diagram.png)
+
+
+
 
 ## Not Started
 - Replication factor (N), quorum reads/writes (tunable consistency)
