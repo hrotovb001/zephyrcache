@@ -56,6 +56,9 @@ Notes:
 - Peers watch the prefix (/zephyrcache/members/) to detect joins/leaves promptly.
 ```
 
+## Request Forwarding
+![Request Forwarding](diagrams/request-forwarding/diagram.png)
+
 ## Consistent Hash Ring
 ![Consistent Hashing Example](diagrams/consistent_hashing/diagram.png)
 
@@ -64,13 +67,9 @@ Notes:
 - t1..t4 are token positions on the ring (0..2^m-1).
 - hash(k) = point p on the ring.
 - Owner(k) = first node clockwise from p.
-
 Example:
   hash("user:42") = position between t2 and t3 → Owner = N3.
 ```
-
-## Request Forwarding
-![Request Forwarding](diagrams/request-forwarding/diagram.png)
 
 ## Not Started
 - Replication factor (N), quorum reads/writes (tunable consistency)
