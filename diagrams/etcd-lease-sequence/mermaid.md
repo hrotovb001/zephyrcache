@@ -3,36 +3,41 @@
 Use mermaid editor to render/edit e.g. https://www.eraser.io
 
 ```
-sequenceDiagram
-    participant C as Client (node1)
-    participant E as etcd cluster
-    participant P as Peers / Watchers
+title Etcd Member Registration and Lease Lifecycle
+autoNumber nested
 
-    %% Phase 1: Registration
-    C->>E: LeaseGrant(TTL=10s)
-    E-->>C: LeaseGrantResp(leaseID=0x1234, TTL=10s)
-    C->>E: Put(/members/node1, value=..., lease=0x1234)
-    E-->>C: OK
+Cache Node [icon: azure-support-center-blue, color: blue]
+Etcd Cluster [icon: azure-api-center, color: purple]
+Peers [icon: azure-consortium, color: green]
 
-    %% Phase 2: Heartbeat
-    Note over C,E: Bi-di stream: LeaseKeepAlive(0x1234)
-    loop KeepAlive every ~TTL/3
-        C->>E: KeepAlive(0x1234)
-        E-->>C: KeepAliveResp(TTL≈10s)
-    end
+// Phase 1: Registration
+Cache Node > Etcd Cluster: Request short-term lease (e.g., 10s)
+activate Cache Node
+Etcd Cluster --> Cache Node: Grant lease with ID and TTL
+Cache Node > Etcd Cluster: Register self with lease ID
+Etcd Cluster --> Cache Node: Registration confirmation
 
-    %% Phase 3: Failure detection
-    Note over C: crash / network partition / exit
-    E->>E: TTL counts down
-    E->>E: EXPIRE lease 0x1234
-    E->>E: DELETE /members/node1
-    E-->>P: WATCH EVENT → DELETE (reason=EXPIRED)
+// Phase 2: Heartbeat
+loop [label: Keep lease alive, icon: refresh, color: blue] {
+  Cache Node > Etcd Cluster: Send keep-alive for lease
+  Etcd Cluster --> Cache Node: Respond with updated TTL
+}
 
-    %% Phase 4: Graceful revoke
-    opt Graceful shutdown
-        C->>E: LeaseRevoke(0x1234)
-        E-->>C: OK
-        E->>E: DELETE /members/node1
-        E-->>P: WATCH EVENT → DELETE (reason=REVOKED)
-    end
+// Phase 3: Failure detection
+break [label: Cache Node failure, icon: alert-triangle, color: red] {
+  Cache Node > Cache Node: Crash, network partition, or exit
+  Etcd Cluster > Etcd Cluster: Lease TTL counts down
+  Etcd Cluster > Etcd Cluster: Lease expires
+  Etcd Cluster > Etcd Cluster: Remove client registration
+  Etcd Cluster --> Peers: Notify peers of removal (reason: expired)
+}
+
+// Phase 4: Graceful shutdown
+opt [label: Graceful shutdown, icon: log-out, color: orange] {
+  Cache Node > Etcd Cluster: Request lease revocation
+  Etcd Cluster --> Cache Node: Confirm revocation
+  Etcd Cluster > Etcd Cluster: Remove client registration
+  Etcd Cluster --> Peers: Notify peers of removal (reason: revoked)
+}
+deactivate Cache Node
 ```

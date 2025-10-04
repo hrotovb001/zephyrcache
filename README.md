@@ -1,30 +1,20 @@
-# ZephyrCache — a self-healing distributed cache (MVP)
-# Started Fall 2025
-**Status:** Scaffold. First milestone compiles & runs a single-node HTTP API with pluggable ring/membership stubs.
-
-## Features (planned)
-- Consistent hashing ring with virtual nodes
-- Gossip/etcd-based membership
-- phi accrual failure detector
-- Tunable consistency (R/W quorums), replication factor
-- Hinted handoff, read-repair, anti-entropy (Merkle)
-- TTL + LRU eviction
-- Prometheus metrics, Grafana dashboards
-- Docker Compose to run a local cluster
+# ZephyrCache
 
 ## Quick start
 ```bash
 # Run with default configuration (1 cache node, 1 etcd node, default docker network)
 docker-compose -f deploy/docker-compose.yml up -d
 
-# Or scale to more nodes
-docker-compose -f deploy/docker-compose.yml up -d --scale node=10
-
 # Test the cluster
 curl localhost:8080/healthz
 curl -X PUT localhost:8080/kv/foo -d 'bar'
 curl localhost:8080/kv/foo
+
+# Scale to more cache nodes
+docker-compose -f deploy/docker-compose.yml up -d --scale node=10
+docker-compose -f deploy/docker-compose.yml up -d --scale node=50
 ```
+
 
 ## Viewing logs
 ```bash
@@ -47,44 +37,39 @@ docker-compose -f deploy/docker-compose.yml logs --tail 100 node
 docker-compose -f deploy/docker-compose.yml down
 ```
 
-## Roadmap
-
-### Done
-- Core KV store with TTL + LRU eviction
-- HTTP API and basic metrics
-- etcd-backed membership via leases (ephemeral keys, watch-based join/leave)
-- Cluster routing via consistent hash ring and request forwarding
-
-### Next
-- Gossip-based membership and failure detection
-
-### Not Started
-- Replication factor (N), quorum reads/writes (R/W), hinted handoff, read repair
-- Rebalancing hooks for node joins/leaves
-- Anti-entropy sync (Merkle trees)
-- Chaos testing, dashboards, and alerts
-
 ## etcd Lease Sequence
+Registering all nodes in etcd on startup enables critical features such as request forwarding and health monitoring.
+
 ![etcd Lease Sequence](diagrams/etcd-lease-sequence/diagram.png)
-```markdown
-Notes:
-- Attach all ephemeral membership/heartbeat keys to the same lease (e.g., leaseID 0x1234).
-- KeepAlive is a long-lived gRPC stream; send pings around TTL/3 to maintain headroom.
-- On lease expiry or revoke, etcd deletes all keys bound to that lease and emits watch events.
-- Peers watch the prefix (/zephyrcache/members/) to detect joins/leaves promptly.
-```
 
-## Consistent Hash Ring
-![Consistent Hashing Example](diagrams/consistent_hashing/diagram.png)
+- Each node registers its membership information in etcd under a single lease (e.g., `leaseID 0x1234`)
+- All ephemeral membership keys for that node are attached to this lease, ensuring atomic cleanup on failure
+- `KeepAlive` operates as a long-lived bidirectional gRPC stream implemented in the etcd client; nodes send heartbeat pings approximately every TTL/3 to maintain the lease
+- When a lease expires (no heartbeat received within TTL) or is explicitly revoked, etcd automatically deletes all bound keys and emits watch events to all peers monitoring `/zephyr/nodes`
+- Peer nodes receive these watch events and update their local membership view accordingly
 
-```text
-- t1..t4 are token positions on the ring (0..2^m-1).
-- hash(k) = point p on the ring.
-- Owner(k) = first node clockwise from p.
+### Known Limitations
+- **Single Point of Failure**: etcd cluster outages prevent new nodes from joining and may cause cascading failures
+- **Network Sensitivity**: Transient network issues can trigger false-positive failure detections
+- **Scalability**: Watch event fanout becomes expensive with large clusters (>100 nodes)
 
-Example:
-  hash("user:42") = position between t2 and t3 → Owner = N3.
-```
+### Planned solution
+- Gossip protocol for cluster membership.
+- Phi accrual failure detection.
 
 ## Request Forwarding
+Clients can send requests to any node in the cluster without needing to know which node owns the data.
+
 ![Request Forwarding](diagrams/request-forwarding/diagram.png)
+
+## Consistent Hashing
+Each node uses consistent hashing to route requests to the correct owner:
+
+**How it works:**
+- The hash ring spans positions from 0 to 2^m-1
+- Each node is assigned one or more token positions (t1, t2, t3, t4) on the ring
+- When a key arrives, hash(k) maps it to a position p on the ring
+- The owner is the first node found traveling clockwise from position p
+
+**Example:**
+![Consistent Hashing Example](diagrams/consistent_hashing/diagram.png)
