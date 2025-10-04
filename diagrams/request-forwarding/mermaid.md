@@ -1,5 +1,6 @@
 # Request Forwarding
 
+```
 Client [icon: azure-administrative-units, color: blue]
 Ingress Node (2) [icon: azure-load-balancers, color: orange]
 Ring [icon:azure-confidential-ledgers, color: teal]
@@ -13,3 +14,4 @@ activate Node 3
 Node 3-->Ingress Node (2): OK
 deactivate Node 3
 Ingress Node (2)-->Client: 200 OK
+```
