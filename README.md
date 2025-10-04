@@ -1,16 +1,15 @@
-# ZephyrCache — a self-healing distributed cache (MVP)
-# Started Fall 2025
-**Status:** Scaffold. First milestone compiles & runs a single-node HTTP API with pluggable ring/membership stubs.
+# ZephyrCache — a self-healing distributed cache
 
-## Features (planned)
-- Consistent hashing ring with virtual nodes
-- Gossip/etcd-based membership
-- phi accrual failure detector
-- Tunable consistency (R/W quorums), replication factor
-- Hinted handoff, read-repair, anti-entropy (Merkle)
-- TTL + LRU eviction
-- Prometheus metrics, Grafana dashboards
+## Started
 - Docker Compose to run a local cluster
+- Core KV store
+- HTTP API and basic metrics
+- etcd-backed membership via leases (ephemeral keys, watch-based join/leave)
+- Cluster routing via consistent hash ring and request forwarding
+- Gossip-based membership and failure detection
+- Prometheus metrics, Grafana dashboards
+
+
 
 ## Quick start
 ```bash
@@ -47,23 +46,6 @@ docker-compose -f deploy/docker-compose.yml logs --tail 100 node
 docker-compose -f deploy/docker-compose.yml down
 ```
 
-## Roadmap
-
-### Done
-- Core KV store with TTL + LRU eviction
-- HTTP API and basic metrics
-- etcd-backed membership via leases (ephemeral keys, watch-based join/leave)
-- Cluster routing via consistent hash ring and request forwarding
-
-### Next
-- Gossip-based membership and failure detection
-
-### Not Started
-- Replication factor (N), quorum reads/writes (R/W), hinted handoff, read repair
-- Rebalancing hooks for node joins/leaves
-- Anti-entropy sync (Merkle trees)
-- Chaos testing, dashboards, and alerts
-
 ## etcd Lease Sequence
 ![etcd Lease Sequence](diagrams/etcd-lease-sequence/diagram.png)
 ```markdown
@@ -88,3 +70,12 @@ Example:
 
 ## Request Forwarding
 ![Request Forwarding](diagrams/request-forwarding/diagram.png)
+
+##Not Started
+- Replication factor (N), quorum reads/writes (R/W), hinted handoff, read repair
+- Rebalancing hooks for node joins/leaves
+- Anti-entropy sync (Merkle trees)
+- Chaos testing, improved dashboards, and alerts
+- phi accrual failure detector
+- Tunable consistency (R/W quorums), replication factor
+- Hinted handoff, read-repair, anti-entropy (Merkle)
