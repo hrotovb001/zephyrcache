@@ -49,11 +49,9 @@ docker-compose -f deploy/docker-compose.yml down
 ## etcd Lease Sequence
 ![etcd Lease Sequence](diagrams/etcd-lease-sequence/diagram.png)
 
-Notes:
-- Attach all ephemeral membership/heartbeat keys to the same lease (e.g., leaseID 0x1234).
-- KeepAlive is a long-lived gRPC stream; send pings around TTL/3 to maintain headroom.
-- On lease expiry or revoke, etcd deletes all keys bound to that lease and emits watch events.
-- Peers watch the prefix (/zephyrcache/members/) to detect joins/leaves promptly.
+- Each node attaches all ephemeral membership keys to a single lease (e.g., `leaseID 0x1234`)
+- `KeepAlive` runs as a long-lived gRPC stream; nodes send heartbeat pings every ~TTL/3 to maintain the lease
+- When a lease expires or is revoked, etcd automatically deletes all bound keys and emits watch events to peers watching `/zephyrcache/members/`
 
 
 ## Request Forwarding
