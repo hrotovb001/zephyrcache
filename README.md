@@ -47,6 +47,8 @@ docker-compose -f deploy/docker-compose.yml down
 ```
 
 ## etcd Lease Sequence
+Registering all nodes in etcd on startup allows for very important features such as forwaring client requests and health checks.
+
 ![etcd Lease Sequence](diagrams/etcd-lease-sequence/diagram.png)
 
 - Each node attaches all ephemeral membership keys to a single lease (e.g., `leaseID 0x1234`)
@@ -55,7 +57,6 @@ docker-compose -f deploy/docker-compose.yml down
 
 
 ## Request Forwarding
-Registering all nodes in etcd on startup allows for a very important feature: forwaring client requests.
 Clients can send requests to any node in the cluster without needing to know which node owns the data.
 
 ![Request Forwarding](diagrams/request-forwarding/diagram.png)
