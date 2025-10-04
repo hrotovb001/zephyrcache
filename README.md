@@ -55,6 +55,7 @@ docker-compose -f deploy/docker-compose.yml down
 
 
 ## Request Forwarding
+Registering all nodes in etcd on startup allows for a very important feature: forwaring client requests.
 Clients can send requests to any node in the cluster without needing to know which node owns the data.
 
 ![Request Forwarding](diagrams/request-forwarding/diagram.png)
