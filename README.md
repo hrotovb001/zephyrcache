@@ -1,14 +1,5 @@
 # ZephyrCache — a self-healing distributed cache
 
-## Started
-- Docker Compose to run a local cluster
-- Core KV store
-- HTTP API and basic metrics
-- etcd-backed membership via leases (ephemeral keys, watch-based join/leave)
-- Cluster routing via consistent hash ring and request forwarding
-- Gossip-based membership and failure detection (skeleton not working yet defaulting to etcd)
-- Prometheus metrics, Grafana dashboards
-
 ## Quick start
 ```bash
 # Run with default configuration (1 cache node, 1 etcd node, default docker network)
@@ -61,6 +52,9 @@ Registering all nodes in etcd on startup enables critical features such as reque
 - **Single Point of Failure**: etcd cluster outages prevent new nodes from joining and may cause cascading failures
 - **Network Sensitivity**: Transient network issues can trigger false-positive failure detections
 - **Scalability**: Watch event fanout becomes expensive with large clusters (>100 nodes)
+
+### Planned solution
+- Gossip protocol for cluster membership with dynamic trust and reputation scoring.
 
 ## Request Forwarding
 Clients can send requests to any node in the cluster without needing to know which node owns the data.
