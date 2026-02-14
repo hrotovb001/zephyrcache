@@ -80,11 +80,3 @@ Each node uses consistent hashing to route requests to the correct owner:
 
 **Example:**
 ![Consistent Hashing Example](diagrams/consistent_hashing/diagram.png)
-
-## Not Started
-- Replication factor (N), quorum reads/writes (tunable consistency)
-- Rebalancing hooks for node joins/leaves
-- Anti-entropy sync (Merkle trees)
-- Chaos testing, improved dashboards, and alerts
-- Phi accrual failure detector
-- Hinted handoff, read-repair, anti-entropy (Merkle)
