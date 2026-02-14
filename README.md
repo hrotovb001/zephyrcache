@@ -55,6 +55,7 @@ Registering all nodes in etcd on startup enables critical features such as reque
 
 ### Planned solution
 - Gossip protocol for cluster membership with dynamic trust and reputation scoring.
+- Phi accrual failure detection.
 
 ## Request Forwarding
 Clients can send requests to any node in the cluster without needing to know which node owns the data.
