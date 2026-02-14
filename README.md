@@ -54,7 +54,7 @@ Registering all nodes in etcd on startup enables critical features such as reque
 - **Scalability**: Watch event fanout becomes expensive with large clusters (>100 nodes)
 
 ### Planned solution
-- Gossip protocol for cluster membership with dynamic trust and reputation scoring.
+- Gossip protocol for cluster membership.
 - Phi accrual failure detection.
 
 ## Request Forwarding
