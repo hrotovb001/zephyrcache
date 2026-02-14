@@ -1,4 +1,4 @@
-# ZephyrCache — a self-healing distributed cache
+# ZephyrCache — a distributed cache
 
 ## Quick start
 ```bash
