@@ -38,7 +38,7 @@ docker-compose -f deploy/docker-compose.yml down
 ```
 
 ## etcd Lease Sequence
-Registering all nodes in etcd on startup enables critical features such as request forwarding and health monitoring. **Note: etcd represents a centralized point of failure in the current architecture. Future versions will migrate to a gossip-based protocol for decentralized membership management.**
+Registering all nodes in etcd on startup enables critical features such as request forwarding and health monitoring.
 
 ![etcd Lease Sequence](diagrams/etcd-lease-sequence/diagram.png)
 
