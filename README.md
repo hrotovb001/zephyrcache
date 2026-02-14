@@ -1,4 +1,4 @@
-# ZephyrCache — a distributed cache
+# ZephyrCache
 
 ## Quick start
 ```bash
@@ -60,8 +60,6 @@ Registering all nodes in etcd on startup enables critical features such as reque
 Clients can send requests to any node in the cluster without needing to know which node owns the data.
 
 ![Request Forwarding](diagrams/request-forwarding/diagram.png)
-
-This raises the question: **"How does a node determine which node owns a given key?"**
 
 ## Consistent Hashing
 Each node uses consistent hashing to route requests to the correct owner:
