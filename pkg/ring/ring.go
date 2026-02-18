@@ -14,9 +14,11 @@ type HashRing struct {
 	mu       sync.RWMutex
 	replicas int
 	hash     Hasher
-	tokens   []uint32          // tokens give each node many placements on the ring and sorted token list defines ring order
-	owners   map[uint32]string // token -> nodeID
-	nodes    map[string]string // nodeID -> addr (metadata)
+	// tokens give each node many placements on the ring and
+	// sorted token list defines ring order
+	tokens []uint32
+	owners map[uint32]string // token -> nodeID
+	nodes  map[string]string // nodeID -> addr (metadata)
 }
 
 func New(replicas int, h Hasher) *HashRing {
@@ -51,9 +53,9 @@ func (r *HashRing) Add(nodeID, addr string) {
 	r.nodes[nodeID] = addr
 	// add virtual nodes
 	for i := 0; i < r.replicas; i++ {
-		pt := r.hash(tokenKey(nodeID, i))
-		r.owners[pt] = nodeID
-		r.tokens = append(r.tokens, pt)
+		tok := r.hash(tokenKey(nodeID, i))
+		r.owners[tok] = nodeID
+		r.tokens = append(r.tokens, tok)
 	}
 	slices.Sort(r.tokens)
 }
@@ -79,18 +81,11 @@ func (r *HashRing) Remove(nodeID string) {
 }
 
 func (r *HashRing) Lookup(key []byte) string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	if len(r.tokens) == 0 {
+	nodes := r.LookupN(key, 1)
+	if len(nodes) == 0 {
 		return ""
 	}
-	h := r.hash(key)
-	// first token >= h, wrap if needed
-	idx := sort.Search(len(r.tokens), func(i int) bool { return r.tokens[i] >= h })
-	if idx == len(r.tokens) {
-		idx = 0
-	}
-	return r.owners[r.tokens[idx]]
+	return nodes[0]
 }
 
 func (r *HashRing) LookupN(key []byte, n int) []string {
