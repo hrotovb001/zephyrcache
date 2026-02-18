@@ -22,10 +22,11 @@ import (
 )
 
 type server struct {
-	kv    *kv.Store
-	ring  *ring.HashRing
-	peers []string
-	addr  string
+	kv                *kv.Store
+	ring              *ring.HashRing
+	peers             []string
+	addr              string
+	replicationFactor int
 }
 
 // healthz returns 200 OK to indicate the server is alive.
@@ -70,6 +71,18 @@ func (s *server) ownerForKey(key string) (ownerHP, selfHP string, ok bool) {
 		return "", "", false
 	}
 	return normalizeHostPort(ownerAddr, "8080"), normalizeHostPort(s.addr, "8080"), true
+}
+
+func (s *server) replicasForKey(key string) []string {
+	nodeIDs := s.ring.LookupN([]byte(key), s.replicationFactor)
+	addrs := make([]string, 0, len(nodeIDs))
+	for _, id := range nodeIDs {
+		addr, ok := s.ring.Addr(id)
+		if ok && addr != "" {
+			addrs = append(addrs, normalizeHostPort(addr, "8080"))
+		}
+	}
+	return addrs
 }
 
 // forward forwards a http request to the node that owns the key
@@ -202,10 +215,18 @@ func main() {
 	r := ring.New(128, ring.FNV32a)
 	id := os.Getenv("SELF_ID")
 	addr := os.Getenv("SELF_ADDR")
+
+	replicationFactor := 2
+	if v := os.Getenv("REPLICATION_FACTOR"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			replicationFactor = n
+		}
+	}
 	s := &server{
-		kv:   store,
-		ring: r,
-		addr: normalizeHostPort(addr, "8080"),
+		kv:                store,
+		ring:              r,
+		addr:              normalizeHostPort(addr, "8080"),
+		replicationFactor: replicationFactor,
 	}
 	// 2. Create etcd client
 	log.Printf("[Boot] creating etcd client")
