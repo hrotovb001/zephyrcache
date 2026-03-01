@@ -1,42 +1,57 @@
 package gossip
 
-import (
-	"go.uber.org/zap"
-	"math/rand"
-	"time"
+type Message struct {
+    Type      	MessageType 	`json:"type"`
+	SubjectId   string	 		`json:"sub_id"`
+	SourceId    string 			`json:"src_id"`
+	OriginId    string 			`json:"orig_id"`
+	Payload     *MessagePayload `json:"payload"`
+}
+
+type MessagePayload struct {
+	Type      		PayloadType       `json:"type"`
+	Peers     		map[string]string `json:"peers"`
+	TransmitCount	int               `json:"-"`
+}
+
+type MessageType string
+
+const (
+	Ping   		MessageType = "ping"
+	PingReq  	MessageType = "ping_request"
+	PingAck  	MessageType = "ping_ack"
 )
 
-// Entry point for the gossip subsystem
-// defines the Gossiper struct, config, lifecycle methods (e.g. Start(), Stop() etc)
-// Wires together membership, message handling and transport
+type PayloadType string
 
-type Config struct {
-	// --- Gossip loop ---
-	ProbeInterval   time.Duration // how often to ping a random peer
-	ProbeTimeout    time.Duration // wait time for ack before suspecting
-	IndirectK       int           // # of indirect peers for failure suspicion
-	IndirectTimeout time.Duration // wait time for indirect ack
-	Fanout          int           // how many peers get piggybacked deltas
+const (
+	JoinRequest     PayloadType = "join_request"
+	JoinResponse    PayloadType = "join_response"
+    NewMember       PayloadType = "new_member"
+	DeadMember      PayloadType = "dead_member"
+)
 
-	// --- Failure detection ---
-	SuspectTimeout time.Duration // how long before Suspect → Dead
-	DeadTimeout    time.Duration // how long to keep Dead before tombstone GC
-	PhiThreshold   float64       // phi value at which we suspect a node
-
-	// --- Anti-entropy ---
-	PushPullEvery int // every N probes, run a full state sync
-
-	// --- Misc ---
-	BindAddr       string      // local address for transport
-	SeedNodes      []string    // known peers to join cluster
-	Logger         *zap.Logger // or stdlib logger, for observability
-	MetricsEnabled bool
+func NewMessage(msgType MessageType, subjectId string, sourceId, originId string, payload *MessagePayload) *Message {
+	return &Message{
+ 		Type: msgType,
+		SubjectId: subjectId,
+		SourceId: sourceId,
+		OriginId: originId,
+		Payload: payload,
+	}
 }
 
-type Gossip struct {
-	ml  MemberList
-	tx  Transport
-	fd  FailureDetector
-	cfg Config
-	rnd *rand.Rand
+func NewPayload(payloadType PayloadType, peers map[string]string) *MessagePayload {
+	var transmitCount int
+	if payloadType == JoinResponse {
+		transmitCount = 0
+	} else {
+		transmitCount = 1
+	}
+	return &MessagePayload{
+		Type: payloadType,
+		Peers: peers,
+		TransmitCount: transmitCount,
+	}
 }
+

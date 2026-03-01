@@ -1,64 +1,82 @@
 package node
 
 import (
+	"math"
+	"math/rand"
+	"time"
+	"log"
+
 	"github.com/ryandielhenn/zephyrcache/pkg/gossip"
 	"github.com/ryandielhenn/zephyrcache/pkg/kv"
 	"github.com/ryandielhenn/zephyrcache/pkg/ring"
 )
 
 type Node struct {
-	kv    *kv.Store
-	ring  *ring.HashRing
-	peers []string
-	addr  string
-	gsp   gossip.Gossip
-	rf    int
+	kv          *kv.Store
+	ring        *ring.HashRing
+	gossipQueue []*gossip.MessagePayload
+	suspectPeer string
+	peers 		map[string]string
+	id    		string
+	addr  		string
+	timeout     *time.Timer
 }
 
-func NewNode(store *kv.Store, r *ring.HashRing, addr string) *Node {
-	return NewNodeRF(store, r, addr, 3)
-}
-
-func NewNodeRF(store *kv.Store, r *ring.HashRing, addr string, replicationFactor int) *Node {
+func NewNode(store *kv.Store, r *ring.HashRing, id string, addr string) *Node {
 	return &Node{
-		kv:   store,
+		kv: store,
 		ring: r,
+		gossipQueue: make([]*gossip.MessagePayload, 0),
+		suspectPeer: "",
+		peers: make(map[string]string),
+		id: id,
 		addr: addr,
-		rf:   replicationFactor,
 	}
 }
 
-func (n *Node) AddPeer(id string, hostport string) {
+func (n *Node) addGossip(msg *gossip.MessagePayload) {
+	n.gossipQueue = append(n.gossipQueue, msg)
+}
+
+func (n *Node) removeGossip() *gossip.MessagePayload {
+	if len(n.gossipQueue) == 0 {
+		return nil
+	}
+	msg := n.gossipQueue[0]
+	n.gossipQueue = n.gossipQueue[1:]
+	count := int(math.Floor(3 * math.Log2(float64(len(n.peers)))))
+	if msg.TransmitCount > 0 && msg.TransmitCount <= count {
+		msg.TransmitCount += 1
+		n.gossipQueue = append(n.gossipQueue, msg)
+	}
+	return msg
+}
+
+func (n *Node) addPeer(id string, hostport string) {
 	n.ring.Add(id, hostport)
+	n.peers[id] = hostport
+	log.Printf("%+v", n.peers)
 }
 
-func (n *Node) RemovePeer(id string) {
+func (n *Node) removePeer(id string) {
 	n.ring.Remove(id)
+	delete(n.peers, id)
+	log.Printf("%+v", n.peers)
 }
 
-func (n *Node) ClearPeers() {
+func (n *Node) clearPeers() {
 	n.ring.Clear()
+	n.peers = make(map[string]string)
 }
 
-// SyncPeers updates the ring incrementally by computing diff between current and new peers.
-// Added peers are added to the ring, removed peers are removed.
-// This is O((added + removed) * replicas) instead of O(all_peers * replicas).
-func (n *Node) SyncPeers(newPeers map[string]string) {
-	// Find removed peers (in current ring but not in new peers)
-	for id := range n.ring.Nodes() {
-		if _, ok := newPeers[id]; !ok {
-			n.ring.Remove(id)
-		}
+func (n *Node) getRandomPeer() string {
+	if len(n.peers) == 0 {
+		return ""
 	}
-
-	// Find added peers (in new peers but not in current ring)
-	for id, addr := range newPeers {
-		if _, ok := n.ring.Addr(id); !ok {
-			n.ring.Add(id, addr)
-		}
+	keys := make([]string, 0, len(n.peers))
+	for key := range n.peers {
+		keys = append(keys, key)
 	}
+	return keys[rand.Intn(len(keys))]
 }
 
-func (n *Node) Addr() string {
-	return n.addr
-}

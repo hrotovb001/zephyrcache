@@ -1,16 +1,19 @@
 # Build stage
-FROM golang:1.24 AS build
+FROM golang:1.24-alpine AS build
+
+# Install git and build dependencies
+RUN apk add --no-cache git
+
 WORKDIR /app
 COPY . .
-RUN go build -o /zephyr ./cmd/server
+
+# Build the Go binary statically (ensures it runs on Alpine)
+RUN CGO_ENABLED=0 GOOS=linux go build -o /zephyr ./cmd/server
 
 # Runtime stage
-FROM debian:stable-slim
+FROM alpine:latest
 
-# Install wget for healthcheck
-RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
-
-# Copy binary from builder
+# Copy binary from build stage
 COPY --from=build /zephyr /usr/local/bin/zephyr
 
 # Copy entrypoint script
@@ -22,5 +25,5 @@ EXPOSE 8080
 # Use entrypoint to set dynamic environment variables
 ENTRYPOINT ["/entrypoint.sh"]
 
-# Run the application
+# Default command
 CMD ["/usr/local/bin/zephyr"]
