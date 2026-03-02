@@ -285,8 +285,12 @@ func StartGossipPinger(node *Node) {
 		)
 		node.sendGossip(message, addr)
 		node.timeout = time.AfterFunc(500 * time.Millisecond, func() {
-			for id, addr := range node.peers {
+			for _, id := range node.getKRandomPeers(3) {
 				if id == node.suspectPeer {
+					continue
+				}
+				addr, ok = node.peers[id]
+				if !ok {
 					continue
 				}
 				message := gossip.NewMessage(

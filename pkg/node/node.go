@@ -80,3 +80,17 @@ func (n *Node) getRandomPeer() string {
 	return keys[rand.Intn(len(keys))]
 }
 
+func (n *Node) getKRandomPeers(k int) []string {
+	if len(n.peers) == 0 {
+		return make([]string, 0)
+	}
+	keys := make([]string, 0, len(n.peers))
+	rand.Shuffle(len(n.peers), func(i, j int) {
+		keys[i], keys[j] = keys[j], keys[i]
+	})
+	if k > len(n.peers) {
+		k = len(n.peers)
+	}
+	return keys[:k]
+}
+
