@@ -1,7 +1,7 @@
 ## etcd Lease Sequence
 Registering all nodes in etcd on startup enables critical features such as request forwarding and health monitoring.
 
-![etcd Lease Sequence](diagrams/etcd-lease-sequence/diagram.png)
+![etcd Lease Sequence](../../diagrams/etcd-lease-sequence/diagram.png)
 
 - Each node registers its membership information in etcd under a single lease (e.g., `leaseID 0x1234`)
 - All ephemeral membership keys for that node are attached to this lease, ensuring atomic cleanup on failure
