@@ -85,6 +85,9 @@ func (n *Node) getKRandomPeers(k int) []string {
 		return make([]string, 0)
 	}
 	keys := make([]string, 0, len(n.peers))
+	for key := range n.peers {
+		keys = append(keys, key)
+	}
 	rand.Shuffle(len(n.peers), func(i, j int) {
 		keys[i], keys[j] = keys[j], keys[i]
 	})

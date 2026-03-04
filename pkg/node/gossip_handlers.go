@@ -254,8 +254,44 @@ func StartGossipListener(port string, node *Node) {
 	}
 }
 
-func StartGossipPinger(node *Node) {
-	ticker := time.NewTicker(1 * time.Second)
+type pingerConfig struct {
+    period  time.Duration
+    timeout time.Duration
+    k       int
+}
+
+type pingerOption func(*pingerConfig)
+
+func WithPeriod(period time.Duration) pingerOption {
+    return func(c *pingerConfig) {
+        c.period = period
+    }
+}
+
+func WithTimeout(timeout time.Duration) pingerOption {
+    return func(c *pingerConfig) {
+        c.timeout = timeout
+    }
+}
+
+func WithK(k int) pingerOption {
+    return func(c *pingerConfig) {
+        c.k = k
+    }
+}
+
+func StartGossipPinger(node *Node, opts ...pingerOption) {
+	cfg := &pingerConfig{
+        period:  1 * time.Second,
+        timeout: 500 * time.Millisecond,
+        k:       3,
+    }
+
+	for _, opt := range opts {
+        opt(cfg)
+    }
+
+	ticker := time.NewTicker(cfg.period)
     defer ticker.Stop()
 
 	for range ticker.C {
@@ -284,8 +320,8 @@ func StartGossipPinger(node *Node) {
 			payload,
 		)
 		node.sendGossip(message, addr)
-		node.timeout = time.AfterFunc(500 * time.Millisecond, func() {
-			for _, id := range node.getKRandomPeers(3) {
+		node.timeout = time.AfterFunc(cfg.timeout, func() {
+			for _, id := range node.getKRandomPeers(cfg.k) {
 				if id == node.suspectPeer {
 					continue
 				}
