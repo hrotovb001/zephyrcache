@@ -27,7 +27,7 @@ func main() {
 	r.Add(id, addr)
 	n := node.NewNode(store, r, id, node.NormalizeHostPort(addr, "8080"))
 	if len(etcdAddrs) != 0 {
-		// 2. Create etcd client
+		// Create etcd client
 		log.Printf("[Boot] creating etcd client")
 		cli, err := clientv3.New(clientv3.Config{
 			Endpoints:   etcdAddrs,
@@ -38,16 +38,17 @@ func main() {
 			log.Fatal(err)
 		}
 		defer cli.Close()
-
-		node.BootstrapWithEtcd(n, cli, etcdAddrs)
-
+		defer node.BootstrapPeers(n, cli)()
+		node.WatchPeers(n, cli)
 	} else if seedAddr != "" {
-
 		go node.StartGossipListener("4000", n)
 		if seedAddr != "" {
 			n.ConnectToCluster(seedAddr)
 		}
 		go node.StartGossipPinger(n)
+	} else {
+		log.Printf("ETCD_ENDPOINTS or SEED_ADDR must be set.")
+		return
 	}
 
 	// 3. Wire up HTTP node endpoints
