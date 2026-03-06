@@ -1,22 +1,60 @@
-BINARY=zephyrcache
-PKG=./...
+# ZephyrCache Deploy Makefile
+#
+# Usage:
+#   make up                  # gossip mode, 3 nodes (default)
+#   make up DISCOVERY=etcd   # etcd mode, 3 nodes
+#   make up NODES=5          # gossip mode, 5 nodes
+#   make down                # tear down
+#   make logs                # tail all logs
+#   make status              # show running containers
+#   make format              # format all code
 
-.PHONY: build run test fmt lint proto
+DISCOVERY ?= gossip
+NODES     ?= 3
+PROJECT   := zephyr
+COMPOSE   := docker compose -p $(PROJECT) -f deploy/docker-compose.yml -f deploy/docker-compose.$(DISCOVERY).yml
 
+.PHONY: up down restart build logs status clean ps
+
+## seed: start seed node
+seed: build
+	$(COMPOSE) up -d seed
+
+## up: scale peers
+up: build
+	$(COMPOSE) up -d --scale node=$(NODES)
+
+## down: stop and remove containers
+down:
+	$(COMPOSE) down
+
+## restart: full restart
+restart: down up
+
+## build: rebuild the node image
 build:
-	go build -o bin/$(BINARY) ./cmd/server
+	$(COMPOSE) build
 
-run: build
-	./bin/$(BINARY)
+## logs: tail logs from all containers
+logs:
+	$(COMPOSE) logs -f
 
-bench:
-	go run ./cmd/bench
+## logs-node: tail logs from nodes only
+logs-node:
+	$(COMPOSE) logs -f node
 
-test:
-	go test $(PKG) -v
+## status: show running containers and health
+status:
+	$(COMPOSE) ps
 
-fmt:
-	gofmt -w .
+## clean: tear down and remove volumes
+clean:
+	$(COMPOSE) down -v --remove-orphans
 
-proto:
-	@echo "Proto generation not wired yet. Install buf/protoc & generate stubs into ./proto."
+format:
+	go fmt ./...
+	gofmt -s -w .
+
+## help: show available targets
+help:
+	@grep -E '^## ' Makefile | sed 's/## //' | column -t -s ':'

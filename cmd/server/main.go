@@ -22,15 +22,16 @@ func main() {
 	id := os.Getenv("SELF_ID")
 	addr := os.Getenv("SELF_ADDR")
 	seedAddr := os.Getenv("SEED_ADDR")
-	etcdAddrs := strings.Split(os.Getenv("ETCD_ENDPOINTS"), ",")
+	etcdEndpoints := os.Getenv("ETCD_ENDPOINTS")
+	membershipService := os.Getenv("DISCOVERY")
 
 	r.Add(id, addr)
 	n := node.NewNode(store, r, id, node.NormalizeHostPort(addr, "8080"))
-	if len(etcdAddrs) != 0 {
+	if membershipService == "etcd" {
 		// Create etcd client
 		log.Printf("[Boot] creating etcd client")
 		cli, err := clientv3.New(clientv3.Config{
-			Endpoints:   etcdAddrs,
+			Endpoints:   strings.Split(etcdEndpoints, ","),
 			DialTimeout: 5 * time.Second,
 		})
 		log.Printf("[Boot] created etcd client with endpoints, %s", cli.Endpoints())
@@ -40,7 +41,7 @@ func main() {
 		defer cli.Close()
 		defer node.BootstrapPeers(n, cli)()
 		node.WatchPeers(n, cli)
-	} else if seedAddr != "" {
+	} else if membershipService == "gossip" {
 		go node.StartGossipListener("4000", n)
 		if seedAddr != "" {
 			n.ConnectToCluster(seedAddr)
