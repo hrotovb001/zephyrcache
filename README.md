@@ -2,9 +2,9 @@
 
 ## Quick start (gossip)
 ```bash
-make seed                # start seed node
-make up                  # start 3 peers (default)
-make up NODES=5          # start 5 peers
+make up                  # start seed node with 3 peers (default)
+make up NODES=5          # start seed node with 5 peers
+make seed                # start stand-alone seed node
 ```
 ## Quick start (etcd)
 ```bash
