@@ -22,3 +22,9 @@ go.work
 .env
 
 .DS_Store
+
+# Nix
+flake.nix
+flake.lock
+.envrc
+.direnv

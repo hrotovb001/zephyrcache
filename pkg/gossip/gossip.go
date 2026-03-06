@@ -1,42 +1,49 @@
 package gossip
 
 import (
-	"go.uber.org/zap"
-	"math/rand"
-	"time"
+	"github.com/ryandielhenn/zephyrcache/pkg/peer"
 )
 
-// Entry point for the gossip subsystem
-// defines the Gossiper struct, config, lifecycle methods (e.g. Start(), Stop() etc)
-// Wires together membership, message handling and transport
-
-type Config struct {
-	// --- Gossip loop ---
-	ProbeInterval   time.Duration // how often to ping a random peer
-	ProbeTimeout    time.Duration // wait time for ack before suspecting
-	IndirectK       int           // # of indirect peers for failure suspicion
-	IndirectTimeout time.Duration // wait time for indirect ack
-	Fanout          int           // how many peers get piggybacked deltas
-
-	// --- Failure detection ---
-	SuspectTimeout time.Duration // how long before Suspect → Dead
-	DeadTimeout    time.Duration // how long to keep Dead before tombstone GC
-	PhiThreshold   float64       // phi value at which we suspect a node
-
-	// --- Anti-entropy ---
-	PushPullEvery int // every N probes, run a full state sync
-
-	// --- Misc ---
-	BindAddr       string      // local address for transport
-	SeedNodes      []string    // known peers to join cluster
-	Logger         *zap.Logger // or stdlib logger, for observability
-	MetricsEnabled bool
+type Message struct {
+	Type      MessageType     `json:"type"`
+	SubjectId string          `json:"sub_id"`
+	SourceId  string          `json:"src_id"`
+	OriginId  string          `json:"orig_id"`
+	Payload   *MessagePayload `json:"payload"`
 }
 
-type Gossip struct {
-	ml  MemberList
-	tx  Transport
-	fd  FailureDetector
-	cfg Config
-	rnd *rand.Rand
+type MessagePayload struct {
+	Peers         map[string]peer.Peer `json:"peers"`
+	TransmitCount int                  `json:"-"`
+}
+
+type MessageType string
+
+const (
+	Ping    MessageType = "ping"
+	PingReq MessageType = "ping_request"
+	PingAck MessageType = "ping_ack"
+)
+
+func NewMessage(msgType MessageType, subjectId string, sourceId, originId string, payload *MessagePayload) *Message {
+	return &Message{
+		Type:      msgType,
+		SubjectId: subjectId,
+		SourceId:  sourceId,
+		OriginId:  originId,
+		Payload:   payload,
+	}
+}
+
+func NewPayload(peers map[string]peer.Peer, retransmit bool) *MessagePayload {
+	var transmitCount int
+	if retransmit {
+		transmitCount = 1
+	} else {
+		transmitCount = 0
+	}
+	return &MessagePayload{
+		Peers:         peers,
+		TransmitCount: transmitCount,
+	}
 }
