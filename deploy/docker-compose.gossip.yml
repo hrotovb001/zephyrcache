@@ -9,7 +9,7 @@ services:
       - CLUSTER=dev
     ports:
       - "8080:8080"
-      - "7946:7946"
+      - "4000:4000"
     deploy:
       resources:
         limits:
@@ -27,7 +27,7 @@ services:
   node:
     environment:
       - DISCOVERY=gossip
-      - SEED_ADDR=seed:7946
+      - SEED_ADDR=seed:4000
     depends_on:
       seed:
         condition: service_healthy
