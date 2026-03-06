@@ -158,7 +158,6 @@ func (n *Node) handleDeadStatus(id string, peerBody peer.Peer) {
 	}
 }
 
-
 func (n *Node) sendGossip(msg *gossip.Message, addr string) {
 	data, err := json.Marshal(msg)
 	if err != nil {

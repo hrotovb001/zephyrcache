@@ -22,7 +22,7 @@ func NormalizeHostPort(addr, defPort string) string {
 }
 
 func OverrideHostPort(addr, port string) string {
-	host, _, err := net.SplitHostPort(addr);
+	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		return addr + ":" + port
 	}
