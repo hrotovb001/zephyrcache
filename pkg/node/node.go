@@ -37,25 +37,6 @@ func NewNode(store *kv.Store, r *ring.HashRing, id string, addr string) *Node {
 	}
 }
 
-// SyncPeers updates the ring incrementally by computing diff between current and new peers.
-// Added peers are added to the ring, removed peers are removed.
-// This is O((added + removed) * replicas) instead of O(all_peers * replicas).
-func (n *Node) syncPeers(newPeers map[string]string) {
-	// Find removed peers (in current ring but not in new peers)
-	for id := range n.ring.Nodes() {
-		if _, ok := newPeers[id]; !ok {
-			n.ring.Remove(id)
-		}
-	}
-
-	// Find added peers (in new peers but not in current ring)
-	for id, addr := range newPeers {
-		if _, ok := n.ring.Addr(id); !ok {
-			n.ring.Add(id, addr)
-		}
-	}
-}
-
 func (n *Node) addGossip(msg *gossip.MessagePayload) {
 	n.gossipQueue = append(n.gossipQueue, msg)
 }
@@ -94,6 +75,24 @@ func (n *Node) setPeer(id string, peerBody peer.Peer) {
 
 func (n *Node) addPeer(id string, peerHP string) {
 	n.setPeer(id, peer.Peer{Addr: peerHP, Status: peer.Alive, Incarnation: 0})
+}
+
+// SyncPeers updates the ring incrementally using the diff between current and new peers.
+// This is O((added + removed) * replicas) instead of O(all_peers * replicas).
+func (n *Node) syncPeers(newPeers map[string]string) {
+	// Find removed peers (in current ring but not in new peers)
+	for id := range n.ring.Nodes() {
+		if _, ok := newPeers[id]; !ok {
+			n.ring.Remove(id)
+		}
+	}
+
+	// Find added peers (in new peers but not in current ring)
+	for id, addr := range newPeers {
+		if _, ok := n.ring.Addr(id); !ok {
+			n.ring.Add(id, addr)
+		}
+	}
 }
 
 func (n *Node) getPeerMap() map[string]peer.Peer {
