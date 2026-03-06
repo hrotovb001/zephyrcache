@@ -5,20 +5,27 @@ import (
 	"strings"
 )
 
-// NormalizeHostPort removes the http:// or https:// prefix from the address
-// and sets the port to port (replacing any existing port).
-func NormalizeHostPort(addr, port string) string {
+// normalizeHostPort cuts the http:// https:// prefixes from the input address
+// adds a default port
+func NormalizeHostPort(addr, defPort string) string {
 	if rest, ok := strings.CutPrefix(addr, "http://"); ok {
 		addr = rest
 	} else if rest, ok := strings.CutPrefix(addr, "https://"); ok {
 		addr = rest
 	}
 
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		host = addr
+	if _, _, err := net.SplitHostPort(addr); err == nil {
+		return addr
 	}
 
+	return addr + ":" + defPort
+}
+
+func OverrideHostPort(addr, port string) string {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr + ":" + port
+	}
 	return net.JoinHostPort(host, port)
 }
 

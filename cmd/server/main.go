@@ -25,6 +25,7 @@ func main() {
 	etcdEndpoints := os.Getenv("ETCD_ENDPOINTS")
 	membershipService := os.Getenv("DISCOVERY")
 
+	// 2. Connect to cluster
 	r.Add(id, addr)
 	n := node.NewNode(store, r, id, node.NormalizeHostPort(addr, "8080"))
 	if membershipService == "etcd" {
@@ -48,7 +49,7 @@ func main() {
 		}
 		go node.StartGossipPinger(n)
 	} else {
-		log.Printf("ETCD_ENDPOINTS or SEED_ADDR must be set.")
+		log.Printf("DISCOVERY must be set.")
 		return
 	}
 
