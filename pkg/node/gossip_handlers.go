@@ -146,12 +146,6 @@ func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string) {
 }
 
 func (n *Node) sendGossip(msg *gossip.Message, addr string) {
-	// log.Printf("Sending Message")
-	// log.Printf("%+v", *msg)
-	// if msg.Payload != nil {
-	//  log.Printf("%+v", *msg.Payload)
-	// }
-
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return

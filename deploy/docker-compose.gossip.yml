@@ -1,13 +1,15 @@
-# Base compose - node service only, used by all discovery backends
+# Gossip (SWIM) discovery overlay
 services:
-  node:
+  seed:
     build:
       context: ..
       dockerfile: Dockerfile
     environment:
+      - DISCOVERY=gossip
       - CLUSTER=dev
     ports:
-      - "8080-8179:8080"
+      - "8080:8080"
+      - "7946:7946"
     deploy:
       resources:
         limits:
@@ -18,6 +20,14 @@ services:
           memory: 64M
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz >/dev/null 2>&1 || exit 1"]
-      interval: 10s
+      interval: 2s
       timeout: 5s
       retries: 3
+
+  node:
+    environment:
+      - DISCOVERY=gossip
+      - SEED_ADDR=seed:7946
+    depends_on:
+      seed:
+        condition: service_healthy

@@ -10,7 +10,7 @@ import (
 )
 
 func BootstrapPeers(node *Node, cli *clientv3.Client) func() {
-	// 1. Bootstrap peers into this ring
+	// Bootstrap peers into this ring
 	resp, err := cli.Get(context.TODO(), "/zephyr/nodes", clientv3.WithPrefix())
 	if err != nil {
 		log.Fatal(err)
@@ -37,7 +37,7 @@ func BootstrapPeers(node *Node, cli *clientv3.Client) func() {
 }
 
 func WatchPeers(node *Node, cli *clientv3.Client) {
-		// 2. Watch for updates about peers
+	// Watch for updates about peers
 	log.Printf("[Boot] before watch peers")
 	discovery.WatchPeers(cli, func(peers map[string]string) {
 		normalizedPeers := make(map[string]string, len(peers))
