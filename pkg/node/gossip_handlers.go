@@ -120,7 +120,7 @@ func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string) {
 		case peer.Dead:
 			if id == n.id {
 				peers := map[string]peer.Peer{
-					id: peer.Peer{
+					id: {
 						n.addr,
 						peer.Alive,
 						n.incarnation + 1,
@@ -176,7 +176,7 @@ func (n *Node) sendGossip(msg *gossip.Message, addr string) {
 
 func (n *Node) ConnectToCluster(addr string) {
 	peers := map[string]peer.Peer{
-		n.id: peer.Peer{
+		n.id: {
 			n.addr,
 			peer.Alive,
 			0,
