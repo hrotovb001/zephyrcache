@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"net"
 	"time"
-	"log"
-	"maps"
 
 	"github.com/ryandielhenn/zephyrcache/pkg/gossip"
+	"github.com/ryandielhenn/zephyrcache/pkg/peer"
 )
 
 func (n *Node) handleGossip(msg *gossip.Message, addr string) {
@@ -19,7 +18,7 @@ func (n *Node) handleGossip(msg *gossip.Message, addr string) {
 	// log.Printf("%+v", *msg)
 
 	if msg.Payload != nil {
-		n.handlePayload(msg.Payload)
+		n.handlePayload(msg.Payload, msg.SourceId)
 	}
 
 	switch msg.Type {
@@ -45,7 +44,7 @@ func (n *Node) handlePing(msg *gossip.Message, addr string){
 }
 
 func (n *Node) handlePingReq(msg *gossip.Message){
-	addr, ok := n.peers[msg.SubjectId]
+	peerBody, ok := n.peers[msg.SubjectId]
 	if !ok {
 		return
 	}
@@ -57,7 +56,7 @@ func (n *Node) handlePingReq(msg *gossip.Message){
 		msg.OriginId,
 		payload,
 	)
-	n.sendGossip(message, addr)
+	n.sendGossip(message, peerBody.Addr)
 }
 
 func (n *Node) handlePingAck(msg *gossip.Message){
@@ -69,7 +68,7 @@ func (n *Node) handlePingAck(msg *gossip.Message){
 		n.suspectPeer = ""
 		return
 	}
-	addr, ok := n.peers[msg.OriginId]
+	peerBody, ok := n.peers[msg.OriginId]
 	if !ok {
 		return
 	}
@@ -81,104 +80,76 @@ func (n *Node) handlePingAck(msg *gossip.Message){
 		msg.OriginId,
 		payload,
 	)
-	n.sendGossip(message, addr)
+	n.sendGossip(message, peerBody.Addr)
 }
 
-func (n *Node) handlePayload(msg *gossip.MessagePayload){
+func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string){
 	if msg == nil {
-	  	return
+		return
 	}
 
 	// log.Printf("%+v", *msg)
 
-	switch msg.Type {
-	case gossip.JoinRequest:
-		n.handleJoinRequest(msg)
-	case gossip.JoinResponse:
-		n.handleJoinResponse(msg)
-	case gossip.NewMember:
-		n.handleNewMember(msg)
-	case gossip.DeadMember:
-		n.handleDeadMember(msg)
+	for id, peerBody := range msg.Peers {
+		switch peerBody.Status {
+		case peer.Alive:
+		    if id == n.id {
+		    	continue
+		    }
+			p, ok := n.peers[id]
+			if !ok && id == sourceId && peerBody.Incarnation == 0 {
+				peers := n.getPeerMap()
+				peers[n.id] = peer.Peer{
+					n.addr,
+					peer.Alive,
+					n.incarnation,
+				}
+				delete(peers, id)
+				payload := gossip.NewPayload(peers, false)
+				n.prependGossip(payload)
+			}
+			shouldUpdate := !ok || (peerBody.Incarnation > p.Incarnation)
+			if shouldUpdate {
+				n.setPeer(id, peerBody)
+				peers := map[string]peer.Peer {
+					id: peerBody,
+				}
+				payload := gossip.NewPayload(peers, true)
+				n.addGossip(payload)
+			}
+		case peer.Dead:
+			if id == n.id {
+				peers := map[string]peer.Peer {
+					id: peer.Peer{
+						n.addr,
+						peer.Alive,
+						n.incarnation + 1,
+					},
+				}
+				payload := gossip.NewPayload(peers, true)
+				n.addGossip(payload)
+				continue
+			}
+			p, ok := n.peers[id]
+			shouldUpdate := !ok || (peerBody.Incarnation > p.Incarnation ||
+				peerBody.Incarnation == p.Incarnation && p.Status == peer.Alive)
+			if shouldUpdate {
+				n.setPeer(id, peerBody)
+				peers := map[string]peer.Peer {
+					id: peerBody,
+				}
+				payload := gossip.NewPayload(peers, true)
+				n.addGossip(payload)
+			}
+		}
 	}
-}
-
-func (n *Node) handleJoinRequest(msg *gossip.MessagePayload){
-	n.handleNewMember(msg)
-	var id string
-	for k, _ := range msg.Peers {
-		id = k
-		break
-	}
-	peers := maps.Clone(n.peers)
-	peers[n.id] = n.addr
-	delete(peers, id)
-	message := gossip.NewPayload(
-		gossip.JoinResponse,
-		peers,
-	)
-	n.gossipQueue = append([]*gossip.MessagePayload{message}, n.gossipQueue...)
-}
-
-func (n *Node) handleJoinResponse(msg *gossip.MessagePayload){
-	n.peers = msg.Peers
-	log.Printf("%+v", n.peers)
-}
-
-func (n *Node) handleNewMember(msg *gossip.MessagePayload){
-	if len(msg.Peers) == 0 {
-		return
-	}
-	var id, addr string
-	for k, v := range msg.Peers {
-		id, addr = k, v
-		break
-	}
-	if id == n.id {
-		return
-	}
-	if value, ok := n.peers[id]; ok && value == addr {
-		return
-	}
-	n.addPeer(id, addr)
-	newPeer := map[string]string {
-		id: addr,
-	}
-	message := gossip.NewPayload(
-		gossip.NewMember,
-		newPeer,
-	)
-	n.addGossip(message)
-}
-
-func (n *Node) handleDeadMember(msg *gossip.MessagePayload){
-	if len(msg.Peers) == 0 {
-		return
-	}
-	var id string
-	for k, _ := range msg.Peers {
-		id = k
-		break
-	}
-	if _, ok := n.peers[id]; !ok {
-		return
-	}
-	n.removePeer(id)
-	deadPeer := map[string]string {
-		id: "",
-	}
-	message := gossip.NewPayload(
-		gossip.DeadMember,
-		deadPeer,
-	)
-	n.addGossip(message)
 }
 
 func (n *Node) sendGossip(msg *gossip.Message, addr string) {
 	// log.Printf("Sending Message")
 	// log.Printf("%+v", *msg)
 	// if msg.Payload != nil {
-	// 	log.Printf("%+v", *msg.Payload)
+	//  log.Printf("%+v", *msg.Payload)
 	// }
 
     data, err := json.Marshal(msg)
@@ -204,13 +175,14 @@ func (n *Node) sendGossip(msg *gossip.Message, addr string) {
 }
 
 func (n *Node) ConnectToCluster(addr string) {
-	peer := map[string]string{
-        n.id: n.addr,
+	peers := map[string]peer.Peer{
+        n.id: peer.Peer{
+			n.addr,
+			peer.Alive,
+			0,
+		},
     }
-	payload := gossip.NewPayload(
-		gossip.JoinRequest,
-        peer,
-	)
+	payload := gossip.NewPayload(peers, true)
 	message := gossip.NewMessage(
 		gossip.Ping,
 		"",
@@ -296,19 +268,20 @@ func StartGossipPinger(node *Node, opts ...pingerOption) {
 
 	for range ticker.C {
 		if node.suspectPeer != "" {
-			node.removePeer(node.suspectPeer)
-			deadPeer := map[string]string {
-				node.suspectPeer: "",
+			peerBody, ok := node.peers[node.suspectPeer]
+			if ok {
+				peerBody.Status = peer.Dead
+				peers := map[string]peer.Peer {
+					node.suspectPeer: peerBody,
+				}
+				payload := gossip.NewPayload(peers, true)
+				node.addGossip(payload)
+				node.setPeer(node.suspectPeer, peerBody)
 			}
-			payload := gossip.NewPayload(
-				gossip.DeadMember,
-				deadPeer,
-			)
-			node.addGossip(payload)
 		}
 		payload := node.removeGossip()
 		node.suspectPeer = node.getRandomPeer()
-		addr, ok := node.peers[node.suspectPeer]
+		peerBody, ok := node.peers[node.suspectPeer]
 		if !ok {
 			continue
 		}
@@ -319,13 +292,13 @@ func StartGossipPinger(node *Node, opts ...pingerOption) {
 			node.id,
 			payload,
 		)
-		node.sendGossip(message, addr)
+		node.sendGossip(message, peerBody.Addr)
 		node.timeout = time.AfterFunc(cfg.timeout, func() {
 			for _, id := range node.getKRandomPeers(cfg.k) {
 				if id == node.suspectPeer {
 					continue
 				}
-				addr, ok = node.peers[id]
+				peerBody, ok := node.peers[id]
 				if !ok {
 					continue
 				}
@@ -336,7 +309,7 @@ func StartGossipPinger(node *Node, opts ...pingerOption) {
 					node.id,
 					payload,
 				)
-				node.sendGossip(message, addr)
+				node.sendGossip(message, peerBody.Addr)
 			}
 		})
     }

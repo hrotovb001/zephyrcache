@@ -1,5 +1,9 @@
 package gossip
 
+import (
+	"github.com/ryandielhenn/zephyrcache/pkg/peer"
+)
+
 type Message struct {
     Type      	MessageType 	`json:"type"`
 	SubjectId   string	 		`json:"sub_id"`
@@ -9,9 +13,8 @@ type Message struct {
 }
 
 type MessagePayload struct {
-	Type      		PayloadType       `json:"type"`
-	Peers     		map[string]string `json:"peers"`
-	TransmitCount	int               `json:"-"`
+	Peers     		map[string]peer.Peer 	`json:"peers"`
+	TransmitCount	int               	`json:"-"`
 }
 
 type MessageType string
@@ -20,15 +23,6 @@ const (
 	Ping   		MessageType = "ping"
 	PingReq  	MessageType = "ping_request"
 	PingAck  	MessageType = "ping_ack"
-)
-
-type PayloadType string
-
-const (
-	JoinRequest     PayloadType = "join_request"
-	JoinResponse    PayloadType = "join_response"
-    NewMember       PayloadType = "new_member"
-	DeadMember      PayloadType = "dead_member"
 )
 
 func NewMessage(msgType MessageType, subjectId string, sourceId, originId string, payload *MessagePayload) *Message {
@@ -41,15 +35,14 @@ func NewMessage(msgType MessageType, subjectId string, sourceId, originId string
 	}
 }
 
-func NewPayload(payloadType PayloadType, peers map[string]string) *MessagePayload {
+func NewPayload(peers map[string]peer.Peer, retransmit bool) *MessagePayload {
 	var transmitCount int
-	if payloadType == JoinResponse {
-		transmitCount = 0
-	} else {
+	if retransmit {
 		transmitCount = 1
+	} else {
+		transmitCount = 0
 	}
 	return &MessagePayload{
-		Type: payloadType,
 		Peers: peers,
 		TransmitCount: transmitCount,
 	}
