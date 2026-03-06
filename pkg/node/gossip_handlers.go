@@ -92,17 +92,17 @@ func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string) {
 
 	// log.Printf("%+v", *msg)
 
-	for id, peerBody := range msg.Peers {
-		switch peerBody.Status {
+	for id, updatedPeer := range msg.Peers {
+		switch updatedPeer.Status {
 		case peer.Alive:
-			n.handleAliveStatus(id, peerBody, sourceId)
+			n.handleAliveStatus(id, updatedPeer, sourceId)
 		case peer.Dead:
-			n.handleDeadStatus(id, peerBody)
+			n.handleDeadStatus(id, updatedPeer)
 		}
 	}
 }
 
-func (n *Node) handleAliveStatus(id string, peerBody peer.Peer, sourceId string) {
+func (n *Node) handleAliveStatus(id string, updatedPeer peer.Peer, sourceId string) {
 	// drop payloads about yourself
 	if id == n.id {
 		return
@@ -110,8 +110,8 @@ func (n *Node) handleAliveStatus(id string, peerBody peer.Peer, sourceId string)
 
 	// handle join requests
 	// when new nodes sends alive status for itself respond with peers
-	p, ok := n.peers[id]
-	if !ok && id == sourceId && peerBody.Incarnation == 0 {
+	currentPeer, ok := n.peers[id]
+	if !ok && id == sourceId && updatedPeer.Incarnation == 0 {
 		peers := n.getPeerMap()
 		peers[n.id] = peer.Peer{
 			n.addr,
@@ -125,33 +125,33 @@ func (n *Node) handleAliveStatus(id string, peerBody peer.Peer, sourceId string)
 
 	// determine wether message is stale or not
 	// update peer status if not stale and propagate update to other nodes
-	shouldUpdate := !ok || (peerBody.Incarnation > p.Incarnation)
+	shouldUpdate := !ok || (updatedPeer.Incarnation > currentPeer.Incarnation)
 	if shouldUpdate {
-		n.setPeer(id, peerBody)
+		n.setPeer(id, updatedPeer)
 		peers := map[string]peer.Peer{
-			id: peerBody,
+			id: updatedPeer,
 		}
 		payload := gossip.NewPayload(peers, true)
 		n.addGossip(payload)
 	}
 }
 
-func (n *Node) handleDeadStatus(id string, peerBody peer.Peer) {
+func (n *Node) handleDeadStatus(id string, updatedPeer peer.Peer) {
 	// drop payloads about yourself
 	if id == n.id {
 		return
 	}
-	p, ok := n.peers[id]
+	currentPeer, ok := n.peers[id]
 
 	// determine wether message is stale or not
 	// update peer status if not stale and propagate update to other nodes
 	// dead status has precedence over alive messages for equal incarnation
-	shouldUpdate := !ok || (peerBody.Incarnation > p.Incarnation ||
-		peerBody.Incarnation == p.Incarnation && p.Status == peer.Alive)
+	shouldUpdate := !ok || (updatedPeer.Incarnation > currentPeer.Incarnation ||
+		updatedPeer.Incarnation == currentPeer.Incarnation && currentPeer.Status == peer.Alive)
 	if shouldUpdate {
-		n.setPeer(id, peerBody)
+		n.setPeer(id, updatedPeer)
 		peers := map[string]peer.Peer{
-			id: peerBody,
+			id: updatedPeer,
 		}
 		payload := gossip.NewPayload(peers, true)
 		n.addGossip(payload)
