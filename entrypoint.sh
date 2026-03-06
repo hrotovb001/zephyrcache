@@ -17,8 +17,6 @@ fi
 echo "Starting node with:"
 echo "  SELF_ID=$SELF_ID"
 echo "  SELF_ADDR=$SELF_ADDR"
-echo "  ETCD_ENDPOINTS=$ETCD_ENDPOINTS"
-echo "  CLUSTER=$CLUSTER"
 
 # Execute the main application
 exec "$@"
