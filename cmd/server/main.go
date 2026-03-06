@@ -5,11 +5,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/ryandielhenn/zephyrcache/internal/telemetry"
 	"github.com/ryandielhenn/zephyrcache/pkg/kv"
 	"github.com/ryandielhenn/zephyrcache/pkg/node"
 	"github.com/ryandielhenn/zephyrcache/pkg/ring"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 func main() {
@@ -19,16 +22,33 @@ func main() {
 	id := os.Getenv("SELF_ID")
 	addr := os.Getenv("SELF_ADDR")
 	seedAddr := os.Getenv("SEED_ADDR")
+	etcdAddrs := strings.Split(os.Getenv("ETCD_ENDPOINTS"), ",")
 
 	r.Add(id, addr)
-	n := node.NewNode(store, r, id, node.NormalizeHostPort(addr, "4000"))
+	n := node.NewNode(store, r, id, node.NormalizeHostPort(addr, "8080"))
+	if len(etcdAddrs) != 0 {
+		// 2. Create etcd client
+		log.Printf("[Boot] creating etcd client")
+		cli, err := clientv3.New(clientv3.Config{
+			Endpoints:   etcdAddrs,
+			DialTimeout: 5 * time.Second,
+		})
+		log.Printf("[Boot] created etcd client with endpoints, %s", cli.Endpoints())
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer cli.Close()
 
-	// 2. Run gossip handlers
-	go node.StartGossipListener("4000", n)
-	if seedAddr != "" {
-		n.ConnectToCluster(seedAddr)
+		node.BootstrapWithEtcd(n, cli, etcdAddrs)
+
+	} else if seedAddr != "" {
+
+		go node.StartGossipListener("4000", n)
+		if seedAddr != "" {
+			n.ConnectToCluster(seedAddr)
+		}
+		go node.StartGossipPinger(n)
 	}
-	go node.StartGossipPinger(n)
 
 	// 3. Wire up HTTP node endpoints
 	mux := http.NewServeMux()

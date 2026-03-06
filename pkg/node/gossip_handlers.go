@@ -31,7 +31,7 @@ func (n *Node) handleGossip(msg *gossip.Message, addr string) {
 	}
 }
 
-func (n *Node) handlePing(msg *gossip.Message, addr string){
+func (n *Node) handlePing(msg *gossip.Message, addr string) {
 	payload := n.removeGossip()
 	message := gossip.NewMessage(
 		gossip.PingAck,
@@ -43,7 +43,7 @@ func (n *Node) handlePing(msg *gossip.Message, addr string){
 	n.sendGossip(message, NormalizeHostPort(addr, "4000"))
 }
 
-func (n *Node) handlePingReq(msg *gossip.Message){
+func (n *Node) handlePingReq(msg *gossip.Message) {
 	peerBody, ok := n.peers[msg.SubjectId]
 	if !ok {
 		return
@@ -59,7 +59,7 @@ func (n *Node) handlePingReq(msg *gossip.Message){
 	n.sendGossip(message, peerBody.Addr)
 }
 
-func (n *Node) handlePingAck(msg *gossip.Message){
+func (n *Node) handlePingAck(msg *gossip.Message) {
 	if msg.OriginId == n.id && n.suspectPeer == msg.SubjectId {
 		if n.timeout != nil {
 			n.timeout.Stop()
@@ -83,7 +83,7 @@ func (n *Node) handlePingAck(msg *gossip.Message){
 	n.sendGossip(message, peerBody.Addr)
 }
 
-func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string){
+func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string) {
 	if msg == nil {
 		return
 	}
@@ -93,9 +93,9 @@ func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string){
 	for id, peerBody := range msg.Peers {
 		switch peerBody.Status {
 		case peer.Alive:
-		    if id == n.id {
-		    	continue
-		    }
+			if id == n.id {
+				continue
+			}
 			p, ok := n.peers[id]
 			if !ok && id == sourceId && peerBody.Incarnation == 0 {
 				peers := n.getPeerMap()
@@ -111,7 +111,7 @@ func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string){
 			shouldUpdate := !ok || (peerBody.Incarnation > p.Incarnation)
 			if shouldUpdate {
 				n.setPeer(id, peerBody)
-				peers := map[string]peer.Peer {
+				peers := map[string]peer.Peer{
 					id: peerBody,
 				}
 				payload := gossip.NewPayload(peers, true)
@@ -119,7 +119,7 @@ func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string){
 			}
 		case peer.Dead:
 			if id == n.id {
-				peers := map[string]peer.Peer {
+				peers := map[string]peer.Peer{
 					id: peer.Peer{
 						n.addr,
 						peer.Alive,
@@ -135,7 +135,7 @@ func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string){
 				peerBody.Incarnation == p.Incarnation && p.Status == peer.Alive)
 			if shouldUpdate {
 				n.setPeer(id, peerBody)
-				peers := map[string]peer.Peer {
+				peers := map[string]peer.Peer{
 					id: peerBody,
 				}
 				payload := gossip.NewPayload(peers, true)
@@ -152,36 +152,36 @@ func (n *Node) sendGossip(msg *gossip.Message, addr string) {
 	//  log.Printf("%+v", *msg.Payload)
 	// }
 
-    data, err := json.Marshal(msg)
-    if err != nil {
-        return
-    }
-    
-    udpAddr, err := net.ResolveUDPAddr("udp", addr)
-    if err != nil {
-        return
-    }
-    
-    conn, err := net.DialUDP("udp", nil, udpAddr)
-    if err != nil {
-        return
-    }
-    defer conn.Close()
-    
-    _, err = conn.Write(data)
-    if err != nil {
-        return
-    }
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return
+	}
+
+	conn, err := net.DialUDP("udp", nil, udpAddr)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+
+	_, err = conn.Write(data)
+	if err != nil {
+		return
+	}
 }
 
 func (n *Node) ConnectToCluster(addr string) {
 	peers := map[string]peer.Peer{
-        n.id: peer.Peer{
+		n.id: peer.Peer{
 			n.addr,
 			peer.Alive,
 			0,
 		},
-    }
+	}
 	payload := gossip.NewPayload(peers, true)
 	message := gossip.NewMessage(
 		gossip.Ping,
@@ -194,13 +194,13 @@ func (n *Node) ConnectToCluster(addr string) {
 }
 
 func StartGossipListener(port string, node *Node) {
-	address := net.JoinHostPort("", port) 
+	address := net.JoinHostPort("", port)
 
 	addr, err := net.ResolveUDPAddr("udp", address)
 	if err != nil {
 		return
 	}
-	
+
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
 		return
@@ -215,63 +215,63 @@ func StartGossipListener(port string, node *Node) {
 		}
 
 		data := make([]byte, n)
-        copy(data, buffer[:n])
+		copy(data, buffer[:n])
 
 		var msg gossip.Message
-        if err := json.Unmarshal(data, &msg); err != nil {
-            continue
-        }
+		if err := json.Unmarshal(data, &msg); err != nil {
+			continue
+		}
 
 		node.handleGossip(&msg, addr.String())
 	}
 }
 
 type pingerConfig struct {
-    period  time.Duration
-    timeout time.Duration
-    k       int
+	period  time.Duration
+	timeout time.Duration
+	k       int
 }
 
 type pingerOption func(*pingerConfig)
 
 func WithPeriod(period time.Duration) pingerOption {
-    return func(c *pingerConfig) {
-        c.period = period
-    }
+	return func(c *pingerConfig) {
+		c.period = period
+	}
 }
 
 func WithTimeout(timeout time.Duration) pingerOption {
-    return func(c *pingerConfig) {
-        c.timeout = timeout
-    }
+	return func(c *pingerConfig) {
+		c.timeout = timeout
+	}
 }
 
 func WithK(k int) pingerOption {
-    return func(c *pingerConfig) {
-        c.k = k
-    }
+	return func(c *pingerConfig) {
+		c.k = k
+	}
 }
 
 func StartGossipPinger(node *Node, opts ...pingerOption) {
 	cfg := &pingerConfig{
-        period:  1 * time.Second,
-        timeout: 500 * time.Millisecond,
-        k:       3,
-    }
+		period:  1 * time.Second,
+		timeout: 500 * time.Millisecond,
+		k:       3,
+	}
 
 	for _, opt := range opts {
-        opt(cfg)
-    }
+		opt(cfg)
+	}
 
 	ticker := time.NewTicker(cfg.period)
-    defer ticker.Stop()
+	defer ticker.Stop()
 
 	for range ticker.C {
 		if node.suspectPeer != "" {
 			peerBody, ok := node.peers[node.suspectPeer]
 			if ok {
 				peerBody.Status = peer.Dead
-				peers := map[string]peer.Peer {
+				peers := map[string]peer.Peer{
 					node.suspectPeer: peerBody,
 				}
 				payload := gossip.NewPayload(peers, true)
@@ -305,13 +305,12 @@ func StartGossipPinger(node *Node, opts ...pingerOption) {
 				message := gossip.NewMessage(
 					gossip.PingReq,
 					id,
-					node.id, 
+					node.id,
 					node.id,
 					payload,
 				)
 				node.sendGossip(message, peerBody.Addr)
 			}
 		})
-    }
+	}
 }
-

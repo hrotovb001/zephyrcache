@@ -1,15 +1,15 @@
 package node
 
 import (
+	"log"
 	"math"
 	"math/rand"
 	"time"
-	"log"
 
 	"github.com/ryandielhenn/zephyrcache/pkg/gossip"
 	"github.com/ryandielhenn/zephyrcache/pkg/kv"
-	"github.com/ryandielhenn/zephyrcache/pkg/ring"
 	"github.com/ryandielhenn/zephyrcache/pkg/peer"
+	"github.com/ryandielhenn/zephyrcache/pkg/ring"
 )
 
 type Node struct {
@@ -17,23 +17,42 @@ type Node struct {
 	ring        *ring.HashRing
 	gossipQueue []*gossip.MessagePayload
 	suspectPeer string
-	peers 		map[string]peer.Peer
-	id    		string
-	addr  		string
+	peers       map[string]peer.Peer
+	id          string
+	addr        string
 	incarnation int
 	timeout     *time.Timer
 }
 
 func NewNode(store *kv.Store, r *ring.HashRing, id string, addr string) *Node {
 	return &Node{
-		kv: store,
-		ring: r,
+		kv:          store,
+		ring:        r,
 		gossipQueue: make([]*gossip.MessagePayload, 0),
 		suspectPeer: "",
-		peers: make(map[string]peer.Peer),
-		id: id,
-		addr: addr,
+		peers:       make(map[string]peer.Peer),
+		id:          id,
+		addr:        addr,
 		incarnation: 0,
+	}
+}
+
+// SyncPeers updates the ring incrementally by computing diff between current and new peers.
+// Added peers are added to the ring, removed peers are removed.
+// This is O((added + removed) * replicas) instead of O(all_peers * replicas).
+func (n *Node) syncPeers(newPeers map[string]string) {
+	// Find removed peers (in current ring but not in new peers)
+	for id := range n.ring.Nodes() {
+		if _, ok := newPeers[id]; !ok {
+			n.ring.Remove(id)
+		}
+	}
+
+	// Find added peers (in new peers but not in current ring)
+	for id, addr := range newPeers {
+		if _, ok := n.ring.Addr(id); !ok {
+			n.ring.Add(id, addr)
+		}
 	}
 }
 
@@ -57,9 +76,6 @@ func (n *Node) removeGossip() *gossip.MessagePayload {
 		n.gossipQueue = append(n.gossipQueue, msg)
 	}
 
-	// for _, msg := range n.gossipQueue {
-	// 	log.Printf("gossip: %+v", msg)
-	// }
 	return msg
 }
 
@@ -74,6 +90,10 @@ func (n *Node) setPeer(id string, peerBody peer.Peer) {
 	n.peers[id] = peerBody
 	peerIds := n.getPeerList()
 	log.Printf("%+v", peerIds)
+}
+
+func (n *Node) addPeer(id string, peerHP string) {
+	n.setPeer(id, peer.Peer{Addr: peerHP, Status: peer.Alive, Incarnation: 0})
 }
 
 func (n *Node) getPeerMap() map[string]peer.Peer {
@@ -122,4 +142,3 @@ func (n *Node) getKRandomPeers(k int) []string {
 	}
 	return peerIds[:k]
 }
-
