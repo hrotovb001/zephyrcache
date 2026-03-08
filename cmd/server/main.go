@@ -59,8 +59,8 @@ func main() {
 		}
 		go node.StartGossipPinger(
 			n,
-			node.WithPeriod(200 * time.Millisecond),
-			node.WithTimeout(100 * time.Millisecond),
+			node.WithPeriod(200*time.Millisecond),
+			node.WithTimeout(100*time.Millisecond),
 		)
 	default:
 		slog.Info("DISCOVERY must be set.")
