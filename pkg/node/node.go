@@ -13,33 +13,38 @@ import (
 )
 
 type Node struct {
-	kv          *kv.Store
-	ring        *ring.HashRing
-	gossipQueue []*gossip.MessagePayload
-	suspectPeer string
-	peers       map[string]peer.Peer
-	id          string
-	addr        string
-	incarnation int
-	timeout     *time.Timer
-	gossipPort  string
+	kv           *kv.Store
+	ring         *ring.HashRing
+	gossipQueue  []*gossip.MessagePayload
+	maxGossipLen int
+	suspectPeer  string
+	peers        map[string]peer.Peer
+	id           string
+	addr         string
+	incarnation  int
+	timeout      *time.Timer
+	gossipPort   string
 }
 
 func NewNode(store *kv.Store, r *ring.HashRing, id string, addr string, gossipPort string) *Node {
 	return &Node{
-		kv:          store,
-		ring:        r,
-		gossipQueue: make([]*gossip.MessagePayload, 0),
-		suspectPeer: "",
-		peers:       make(map[string]peer.Peer),
-		id:          id,
-		addr:        addr,
-		incarnation: 0,
-		gossipPort:  gossipPort,
+		kv:           store,
+		ring:         r,
+		gossipQueue:  make([]*gossip.MessagePayload, 0),
+		maxGossipLen: 3,
+		suspectPeer:  "",
+		peers:        make(map[string]peer.Peer),
+		id:           id,
+		addr:         addr,
+		incarnation:  0,
+		gossipPort:   gossipPort,
 	}
 }
 
 func (n *Node) addGossip(msg *gossip.MessagePayload) {
+	if len(n.gossipQueue) == n.maxGossipLen {
+		n.gossipQueue = n.gossipQueue[1:]
+	}
 	n.gossipQueue = append(n.gossipQueue, msg)
 }
 
@@ -53,13 +58,23 @@ func (n *Node) removeGossip() *gossip.MessagePayload {
 	}
 	msg := n.gossipQueue[0]
 	n.gossipQueue = n.gossipQueue[1:]
-	count := int(math.Floor(3 * math.Log2(float64(len(n.peers)))))
+	count := int(math.Floor(3 * math.Log2(float64(n.countPeers()))))
 	if msg.TransmitCount > 0 && msg.TransmitCount <= count {
 		msg.TransmitCount += 1
 		n.gossipQueue = append(n.gossipQueue, msg)
 	}
 
 	return msg
+}
+
+func (n *Node) countPeers() int {
+	count := 0
+	for _, peerBody := range n.peers {
+		if peerBody.Status == peer.Alive {
+			count += 1
+		}
+	}
+	return count
 }
 
 func (n *Node) setPeer(id string, peerBody peer.Peer) {
@@ -120,9 +135,6 @@ func (n *Node) getPeerList() []string {
 }
 
 func (n *Node) getRandomPeer() string {
-	if len(n.peers) == 0 {
-		return ""
-	}
 	peerIds := n.getPeerList()
 	if len(peerIds) == 0 {
 		return ""
@@ -131,9 +143,6 @@ func (n *Node) getRandomPeer() string {
 }
 
 func (n *Node) getKRandomPeers(k int) []string {
-	if len(n.peers) == 0 {
-		return make([]string, 0)
-	}
 	peerIds := n.getPeerList()
 	rand.Shuffle(len(peerIds), func(i, j int) {
 		peerIds[i], peerIds[j] = peerIds[j], peerIds[i]
