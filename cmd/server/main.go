@@ -55,7 +55,10 @@ func main() {
 	case "gossip":
 		go node.StartGossipListener(n)
 		if seedAddr != "" {
-			n.ConnectToCluster(seedAddr)
+			n.ConnectToCluster(
+				seedAddr,
+				node.WithAttemptPeriod(200*time.Millisecond),
+			)
 		}
 		go node.StartGossipPinger(
 			n,

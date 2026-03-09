@@ -181,7 +181,7 @@ func (n *Node) sendGossip(msg *gossip.Message, addr string) {
 	}
 }
 
-func (n *Node) ConnectToCluster(addr string) {
+func (n *Node) attemptConnectToCluster(addr string) {
 	peers := map[string]peer.Peer{
 		n.id: {
 			Addr:        n.addr,
@@ -198,6 +198,36 @@ func (n *Node) ConnectToCluster(addr string) {
 		payload,
 	)
 	n.sendGossip(message, addr)
+}
+
+type connectConfig struct {
+	attemptPeriod time.Duration
+}
+
+type connectOption func(*connectConfig)
+
+func WithAttemptPeriod(attemptPeriod time.Duration) connectOption {
+	return func(c *connectConfig) {
+		c.attemptPeriod = attemptPeriod
+	}
+}
+
+func (n *Node) ConnectToCluster(addr string, opts ...connectOption) {
+	cfg := &connectConfig{
+		attemptPeriod: 1 * time.Second,
+	}
+
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	ticker := time.NewTicker(cfg.attemptPeriod)
+	for range ticker.C {
+		if len(n.peers) > 0 {
+			break
+		}
+		n.attemptConnectToCluster(addr)
+	}
 }
 
 func StartGossipListener(node *Node) {
