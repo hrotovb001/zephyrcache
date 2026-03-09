@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"log"
 	"log/slog"
 	"net/http"
@@ -24,6 +25,7 @@ func main() {
 	seedAddr := os.Getenv("SEED_ADDR")
 	etcdEndpoints := os.Getenv("ETCD_ENDPOINTS")
 	membershipService := os.Getenv("DISCOVERY")
+	gossipPort := cmp.Or(os.Getenv("GOSSIP_PORT"), "4000")
 	var level slog.Level
 	if lvl := os.Getenv("LOG_LEVEL"); lvl != "" {
 		level.UnmarshalText([]byte(lvl))
@@ -34,7 +36,7 @@ func main() {
 
 	// 2. Connect to cluster
 	r.Add(id, addr)
-	n := node.NewNode(store, r, id, node.NormalizeHostPort(addr, "8080"))
+	n := node.NewNode(store, r, id, node.NormalizeHostPort(addr, "8080"), gossipPort)
 	switch membershipService {
 	case "etcd":
 		// Create etcd client
@@ -51,7 +53,7 @@ func main() {
 		defer node.BootstrapPeers(n, cli)()
 		node.WatchPeers(n, cli)
 	case "gossip":
-		go node.StartGossipListener("4000", n)
+		go node.StartGossipListener(n)
 		if seedAddr != "" {
 			n.ConnectToCluster(seedAddr)
 		}
