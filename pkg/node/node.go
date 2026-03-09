@@ -13,33 +13,38 @@ import (
 )
 
 type Node struct {
-	kv          *kv.Store
-	ring        *ring.HashRing
-	gossipQueue []*gossip.MessagePayload
-	suspectPeer string
-	peers       map[string]peer.Peer
-	id          string
-	addr        string
-	incarnation int
-	timeout     *time.Timer
-	gossipPort  string
+	kv           *kv.Store
+	ring         *ring.HashRing
+	gossipQueue  []*gossip.MessagePayload
+	maxGossipLen int
+	suspectPeer  string
+	peers        map[string]peer.Peer
+	id           string
+	addr         string
+	incarnation  int
+	timeout      *time.Timer
+	gossipPort   string
 }
 
 func NewNode(store *kv.Store, r *ring.HashRing, id string, addr string, gossipPort string) *Node {
 	return &Node{
-		kv:          store,
-		ring:        r,
-		gossipQueue: make([]*gossip.MessagePayload, 0),
-		suspectPeer: "",
-		peers:       make(map[string]peer.Peer),
-		id:          id,
-		addr:        addr,
-		incarnation: 0,
-		gossipPort:  gossipPort,
+		kv:           store,
+		ring:         r,
+		gossipQueue:  make([]*gossip.MessagePayload, 0),
+		maxGossipLen: 3,
+		suspectPeer:  "",
+		peers:        make(map[string]peer.Peer),
+		id:           id,
+		addr:         addr,
+		incarnation:  0,
+		gossipPort:   gossipPort,
 	}
 }
 
 func (n *Node) addGossip(msg *gossip.MessagePayload) {
+	if len(n.gossipQueue) == n.maxGossipLen {
+		n.gossipQueue = n.gossipQueue[1:]
+	}
 	n.gossipQueue = append(n.gossipQueue, msg)
 }
 
