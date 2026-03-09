@@ -2,6 +2,7 @@ package node
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net"
 	"time"
 
@@ -13,6 +14,8 @@ func (n *Node) handleGossip(msg *gossip.Message, addr string) {
 	if msg == nil {
 		return
 	}
+
+	slog.Debug("Received Message", "message", *msg)
 
 	if msg.Payload != nil {
 		n.handlePayload(msg.Payload, msg.SourceId)
@@ -87,6 +90,8 @@ func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string) {
 		return
 	}
 
+	slog.Debug("Received Message Payload", "payload", *msg)
+
 	for id, updatedPeer := range msg.Peers {
 		switch updatedPeer.Status {
 		case peer.Alive:
@@ -106,7 +111,7 @@ func (n *Node) handleAliveStatus(id string, updatedPeer peer.Peer, sourceId stri
 	// handle join requests
 	// when new nodes sends alive status for itself respond with peers
 	currentPeer, ok := n.peers[id]
-	if !ok && id == sourceId && updatedPeer.Incarnation == 0 {
+	if !ok && id == sourceId {
 		peers := n.getPeerMap()
 		peers[n.id] = peer.Peer{
 			Addr:        n.addr,
@@ -118,7 +123,7 @@ func (n *Node) handleAliveStatus(id string, updatedPeer peer.Peer, sourceId stri
 		n.prependGossip(payload)
 	}
 
-	// determine wether message is stale or not
+	// determine whether message is stale or not
 	// update peer status if not stale and propagate update to other nodes
 	shouldUpdate := !ok || (updatedPeer.Incarnation > currentPeer.Incarnation)
 	if shouldUpdate {
@@ -138,7 +143,7 @@ func (n *Node) handleDeadStatus(id string, updatedPeer peer.Peer) {
 	}
 	currentPeer, ok := n.peers[id]
 
-	// determine wether message is stale or not
+	// determine whether message is stale or not
 	// update peer status if not stale and propagate update to other nodes
 	// dead status has precedence over alive messages for equal incarnation
 	shouldUpdate := !ok || (updatedPeer.Incarnation > currentPeer.Incarnation ||
@@ -176,7 +181,7 @@ func (n *Node) sendGossip(msg *gossip.Message, addr string) {
 	}
 }
 
-func (n *Node) ConnectToCluster(addr string) {
+func (n *Node) attemptConnectToCluster(addr string) {
 	peers := map[string]peer.Peer{
 		n.id: {
 			Addr:        n.addr,
@@ -193,6 +198,16 @@ func (n *Node) ConnectToCluster(addr string) {
 		payload,
 	)
 	n.sendGossip(message, addr)
+}
+
+func (n *Node) ConnectToCluster(addr string, attemptPeriod time.Duration) {
+	ticker := time.NewTicker(attemptPeriod)
+	for range ticker.C {
+		if len(n.peers) > 0 {
+			break
+		}
+		n.attemptConnectToCluster(addr)
+	}
 }
 
 func StartGossipListener(node *Node) {

@@ -55,9 +55,13 @@ func main() {
 	case "gossip":
 		go node.StartGossipListener(n)
 		if seedAddr != "" {
-			n.ConnectToCluster(seedAddr)
+			n.ConnectToCluster(seedAddr, 200*time.Millisecond)
 		}
-		go node.StartGossipPinger(n)
+		go node.StartGossipPinger(
+			n,
+			node.WithPeriod(200*time.Millisecond),
+			node.WithTimeout(100*time.Millisecond),
+		)
 	default:
 		slog.Info("DISCOVERY must be set.")
 		return
