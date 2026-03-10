@@ -9,6 +9,7 @@ type Peer struct {
 type PeerStatus string
 
 const (
-	Alive PeerStatus = "alive"
-	Dead  PeerStatus = "dead"
+	Alive 	  PeerStatus = "alive"
+	Suspected PeerStatus = "suspected"  
+	Dead  	  PeerStatus = "dead"
 )

@@ -32,7 +32,6 @@ func NewNode(store *kv.Store, r *ring.HashRing, id string, addr string, gossipPo
 		ring:         r,
 		gossipQueue:  make([]*gossip.MessagePayload, 0),
 		maxGossipLen: 3,
-		suspectPeer:  "",
 		peers:        make(map[string]peer.Peer),
 		id:           id,
 		addr:         addr,
@@ -70,7 +69,7 @@ func (n *Node) removeGossip() *gossip.MessagePayload {
 func (n *Node) countPeers() int {
 	count := 0
 	for _, peerBody := range n.peers {
-		if peerBody.Status == peer.Alive {
+		if peerBody.Status != peer.Dead {
 			count += 1
 		}
 	}
@@ -82,7 +81,7 @@ func (n *Node) setPeer(id string, peerBody peer.Peer) {
 	if ok {
 		n.ring.Remove(id)
 	}
-	if peerBody.Status == peer.Alive {
+	if peerBody.Status != peer.Dead {
 		n.ring.Add(id, peerBody.Addr)
 	}
 	n.peers[id] = peerBody
