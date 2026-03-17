@@ -56,7 +56,7 @@ test:
 	go test ./... -v
 
 bench:
-	go test -bench=BenchmarkPutGet -benchtime=5s -run=^$ -v ./cmd/bench -- -req=50000
+	go test -bench=BenchmarkPutGet -benchtime=5s -run=^$ -v ./cmd/bench -- -n=5
 
 format:
 	go fmt ./...

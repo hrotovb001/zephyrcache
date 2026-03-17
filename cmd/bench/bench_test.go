@@ -22,7 +22,6 @@ import (
 
 var (
 	numNodes = flag.Int("nodes", 3, "number of cache nodes to spin up")
-	numReqs  = flag.Int("req", 5000, "number of requests")
 	conc     = flag.Int("c", 32, "concurrency")
 	valSize  = flag.Int("val", 128, "value size in bytes")
 )
