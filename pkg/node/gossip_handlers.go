@@ -78,7 +78,7 @@ func (n *Node) handlePingAck(msg *gossip.Message) {
 		}
 		return
 	}
-	
+
 	// handle forwarding ack when ping req
 	peerBody, ok := n.peers[msg.OriginId]
 	if !ok {
@@ -156,8 +156,8 @@ func (n *Node) handleSuspectedStatus(id string, updatedPeer peer.Peer) {
 			n.incarnation += 1
 			peers := map[string]peer.Peer{
 				n.id: peer.Peer{
-					Addr: n.addr,
-					Status: peer.Alive,
+					Addr:        n.addr,
+					Status:      peer.Alive,
 					Incarnation: n.incarnation,
 				},
 			}
@@ -295,10 +295,10 @@ func StartGossipListener(node *Node) {
 }
 
 type pingerConfig struct {
-	period  		 time.Duration
+	period           time.Duration
 	pingTimeout      time.Duration
 	suspectedTimeout time.Duration
-	k       		 int
+	k                int
 }
 
 type pingerOption func(*pingerConfig)
@@ -333,7 +333,7 @@ func runGossipPing(node *Node, cfg *pingerConfig) {
 
 	// propagate SUSPECTED if ALIVE target not been acked since last ping
 	if node.targetPeer != "" {
-		peerBody, ok := node.peers[node.targetPeer] 
+		peerBody, ok := node.peers[node.targetPeer]
 		if ok && peerBody.Status == peer.Alive {
 			peerBody.Status = peer.Suspected
 			node.setPeer(node.targetPeer, peerBody)
@@ -409,10 +409,10 @@ func runGossipPing(node *Node, cfg *pingerConfig) {
 
 func StartGossipPinger(node *Node, opts ...pingerOption) {
 	cfg := &pingerConfig{
-		period:  1 * time.Second,
-		pingTimeout: 500 * time.Millisecond,
+		period:           1 * time.Second,
+		pingTimeout:      500 * time.Millisecond,
 		suspectedTimeout: 3 * time.Second,
-		k:       3,
+		k:                3,
 	}
 
 	for _, opt := range opts {

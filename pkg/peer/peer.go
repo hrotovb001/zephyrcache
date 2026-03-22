@@ -9,9 +9,9 @@ type Peer struct {
 type PeerStatus string
 
 const (
-	Alive 	  PeerStatus = "alive"
-	Suspected PeerStatus = "suspected"  
-	Dead  	  PeerStatus = "dead"
+	Alive     PeerStatus = "alive"
+	Suspected PeerStatus = "suspected"
+	Dead      PeerStatus = "dead"
 )
 
 func (leftPeer Peer) IsGreater(rightPeer Peer) bool {
