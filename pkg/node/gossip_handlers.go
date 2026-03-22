@@ -155,7 +155,7 @@ func (n *Node) handleSuspectedStatus(id string, updatedPeer peer.Peer) {
 		if updatedPeer.Incarnation == n.incarnation {
 			n.incarnation += 1
 			peers := map[string]peer.Peer{
-				n.id: peer.Peer{
+				n.id: {
 					Addr:        n.addr,
 					Status:      peer.Alive,
 					Incarnation: n.incarnation,
