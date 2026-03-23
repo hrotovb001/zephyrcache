@@ -14,20 +14,20 @@ const (
 	Dead      PeerStatus = "dead"
 )
 
-func (leftPeer Peer) Supercedes(rightPeer Peer) bool {
+func (leftPeer Peer) Supersedes(rightPeer Peer) bool {
 	if leftPeer.Incarnation > rightPeer.Incarnation {
 		return true
 	}
 	if leftPeer.Incarnation < rightPeer.Incarnation {
 		return false
 	}
-	if leftPeer.Status.supercedes(rightPeer.Status) {
+	if leftPeer.Status.supersedes(rightPeer.Status) {
 		return true
 	}
 	return false
 }
 
-func (leftStatus PeerStatus) supercedes(rightStatus PeerStatus) bool {
+func (leftStatus PeerStatus) supersedes(rightStatus PeerStatus) bool {
 	if rightStatus == Dead {
 		return false
 	}

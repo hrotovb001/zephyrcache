@@ -137,7 +137,7 @@ func (n *Node) handleAliveStatus(id string, updatedPeer peer.Peer, sourceId stri
 
 	// determine whether message is stale or not
 	// update peer status if not stale and propagate update to other nodes
-	shouldUpdate := !ok || updatedPeer.Supercedes(currentPeer)
+	shouldUpdate := !ok || updatedPeer.Supersedes(currentPeer)
 	if shouldUpdate {
 		n.setPeer(id, updatedPeer)
 		peers := map[string]peer.Peer{
@@ -170,7 +170,7 @@ func (n *Node) handleSuspectedStatus(id string, updatedPeer peer.Peer) {
 	// determine whether message is stale or not
 	// update peer status if not stale and propagate update to other nodes
 	currentPeer, ok := n.peers[id]
-	shouldUpdate := !ok || updatedPeer.Supercedes(currentPeer)
+	shouldUpdate := !ok || updatedPeer.Supersedes(currentPeer)
 	if shouldUpdate {
 		n.setPeer(id, updatedPeer)
 		peers := map[string]peer.Peer{
@@ -190,7 +190,7 @@ func (n *Node) handleDeadStatus(id string, updatedPeer peer.Peer) {
 	// determine whether message is stale or not
 	// update peer status if not stale and propagate update to other nodes
 	currentPeer, ok := n.peers[id]
-	shouldUpdate := !ok || updatedPeer.Supercedes(currentPeer)
+	shouldUpdate := !ok || updatedPeer.Supersedes(currentPeer)
 	if shouldUpdate {
 		n.setPeer(id, updatedPeer)
 		peers := map[string]peer.Peer{
