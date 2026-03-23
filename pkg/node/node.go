@@ -59,7 +59,7 @@ func (n *Node) addGossip(newMsg *gossip.MessagePayload) {
 			updatedPeers[oldId] = oldPeer
 			for newId, newPeer := range newMsg.Peers {
 				if newId == oldId {
-					if newPeer.IsGreater(oldPeer) {
+					if newPeer.Supercedes(oldPeer) {
 						updatedPeers[oldId] = newPeer
 					}
 					delete(newMsg.Peers, oldId)
