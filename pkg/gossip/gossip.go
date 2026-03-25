@@ -47,4 +47,3 @@ func NewPayload(peers map[string]peer.Peer, retransmit bool) *MessagePayload {
 		TransmitCount: transmitCount,
 	}
 }
-
