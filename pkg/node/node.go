@@ -42,7 +42,7 @@ func NewNode(store *kv.Store, r *ring.HashRing, id string, addr string, gossipPo
 	}
 }
 
-func (n *Node) addGossip(newMsg *gossip.MessagePayload) {
+func (n *Node) enqGossip(newMsg *gossip.MessagePayload) {
 	if newMsg == nil {
 		return
 	}
@@ -61,7 +61,7 @@ func (n *Node) addGossip(newMsg *gossip.MessagePayload) {
 			}
 		}
 	}
-	if len(newMsg.Peers) == 0  || len(n.gossipQueue) == n.maxGossipLen {
+	if len(newMsg.Peers) == 0 || len(n.gossipQueue) == n.maxGossipLen {
 		return
 	}
 	n.gossipQueue = append(n.gossipQueue, newMsg)

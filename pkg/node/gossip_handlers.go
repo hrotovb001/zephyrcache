@@ -10,7 +10,7 @@ import (
 	"github.com/ryandielhenn/zephyrcache/pkg/peer"
 )
 
-func (n *Node) handleGossip(msg *gossip.Message, addr string) {
+func (n *Node) handleGossip(msg *gossip.Message) {
 	if msg == nil {
 		return
 	}
@@ -155,7 +155,7 @@ func (n *Node) handleAliveStatus(id string, updatedPeer peer.Peer, sourceId stri
 			id: updatedPeer,
 		}
 		payload := gossip.NewPayload(peers, true)
-		n.addGossip(payload)
+		n.enqGossip(payload)
 	}
 }
 
@@ -174,7 +174,7 @@ func (n *Node) handleSuspectedStatus(id string, updatedPeer peer.Peer) {
 			},
 		}
 		payload := gossip.NewPayload(peers, true)
-		n.addGossip(payload)
+		n.prependGossip(payload)
 		return
 	}
 
@@ -188,8 +188,8 @@ func (n *Node) handleSuspectedStatus(id string, updatedPeer peer.Peer) {
 			id: updatedPeer,
 		}
 		payload := gossip.NewPayload(peers, true)
-		n.addGossip(payload)
-		// REFACTOR TO USE A CONFIGURED TIMEOUT
+		n.enqGossip(payload)
+		// TODO REFACTOR TO USE A CONFIGURED TIMEOUT
 		time.AfterFunc(600*time.Millisecond, func() {
 			n.mu.Lock()
 			defer n.mu.Unlock()
@@ -204,7 +204,7 @@ func (n *Node) handleSuspectedStatus(id string, updatedPeer peer.Peer) {
 				id: peerBody,
 			}
 			payload := gossip.NewPayload(peers, true)
-			n.addGossip(payload)
+			n.enqGossip(payload)
 		})
 	}
 }
@@ -220,7 +220,7 @@ func (n *Node) handleDeadStatus(id string, updatedPeer peer.Peer) {
 			id: updatedPeer,
 		}
 		payload := gossip.NewPayload(peers, true)
-		n.addGossip(payload)
+		n.enqGossip(payload)
 	}
 }
 
@@ -300,7 +300,7 @@ func StartGossipListener(node *Node) {
 
 	buffer := make([]byte, 1024)
 	for {
-		n, addr, err := conn.ReadFromUDP(buffer)
+		n, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
 			continue
 		}
@@ -313,7 +313,7 @@ func StartGossipListener(node *Node) {
 			continue
 		}
 
-		node.handleGossip(&msg, addr.String())
+		node.handleGossip(&msg)
 	}
 }
 
@@ -364,7 +364,7 @@ func runGossipPing(node *Node, cfg *pingerConfig) {
 				node.targetPeer: peerBody,
 			}
 			payload := gossip.NewPayload(peers, true)
-			node.addGossip(payload)
+			node.enqGossip(payload)
 
 			// set timeout to declare dead if SUSPECTED for long enough
 			targetPeer := node.targetPeer
@@ -382,7 +382,7 @@ func runGossipPing(node *Node, cfg *pingerConfig) {
 					targetPeer: peerBody,
 				}
 				payload := gossip.NewPayload(peers, true)
-				node.addGossip(payload)
+				node.enqGossip(payload)
 			})
 		}
 	}
