@@ -40,6 +40,17 @@ func (n *Node) handlePing(msg *gossip.Message) {
 		return
 	}
 	payload := n.removeGossip()
+	if peerBody.Status == peer.Dead {
+		if payload == nil {
+			peers := make(map[string]peer.Peer)
+			payload = gossip.NewPayload(peers, false)
+		}
+		payload.Peers[msg.SourceId] = peer.Peer{
+			Addr:        peerBody.Addr,
+			Status:      peer.Suspected,
+			Incarnation: peerBody.Incarnation,
+		}
+	}
 	message := gossip.NewMessage(
 		gossip.PingAck,
 		msg.SubjectId,
@@ -154,16 +165,16 @@ func (n *Node) handleSuspectedStatus(id string, updatedPeer peer.Peer) {
 		// refute updates saying you are suspected
 		if updatedPeer.Incarnation == n.incarnation {
 			n.incarnation += 1
-			peers := map[string]peer.Peer{
-				n.id: {
-					Addr:        n.addr,
-					Status:      peer.Alive,
-					Incarnation: n.incarnation,
-				},
-			}
-			payload := gossip.NewPayload(peers, true)
-			n.addGossip(payload)
 		}
+		peers := map[string]peer.Peer{
+			n.id: {
+				Addr:        n.addr,
+				Status:      peer.Alive,
+				Incarnation: n.incarnation,
+			},
+		}
+		payload := gossip.NewPayload(peers, true)
+		n.addGossip(payload)
 		return
 	}
 
@@ -178,15 +189,27 @@ func (n *Node) handleSuspectedStatus(id string, updatedPeer peer.Peer) {
 		}
 		payload := gossip.NewPayload(peers, true)
 		n.addGossip(payload)
+		// REFACTOR TO USE A CONFIGURED TIMEOUT
+		time.AfterFunc(600*time.Millisecond, func() {
+			n.mu.Lock()
+			defer n.mu.Unlock()
+
+			peerBody, ok := n.peers[id]
+			if !ok || peerBody.Status != peer.Suspected {
+				return
+			}
+			peerBody.Status = peer.Dead
+			n.setPeer(id, peerBody)
+			peers := map[string]peer.Peer{
+				id: peerBody,
+			}
+			payload := gossip.NewPayload(peers, true)
+			n.addGossip(payload)
+		})
 	}
 }
 
 func (n *Node) handleDeadStatus(id string, updatedPeer peer.Peer) {
-	// drop payloads about yourself
-	if id == n.id {
-		return
-	}
-
 	// determine whether message is stale or not
 	// update peer status if not stale and propagate update to other nodes
 	currentPeer, ok := n.peers[id]
@@ -397,7 +420,7 @@ func runGossipPing(node *Node, cfg *pingerConfig) {
 			payload := node.removeGossip()
 			message := gossip.NewMessage(
 				gossip.PingReq,
-				id,
+				targetPeer,
 				node.id,
 				node.id,
 				payload,

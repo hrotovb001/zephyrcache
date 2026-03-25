@@ -46,40 +46,23 @@ func (n *Node) addGossip(newMsg *gossip.MessagePayload) {
 	if newMsg == nil {
 		return
 	}
-	newQueue := make([]*gossip.MessagePayload, 0)
 	for _, oldMsg := range n.gossipQueue {
 		if oldMsg == nil {
 			continue
 		}
-
-		// replace stale updates from peers in old message
-		// remove them from current update since they will be made earlier
-		updatedPeers := make(map[string]peer.Peer)
-		for oldId, oldPeer := range oldMsg.Peers {
-			updatedPeers[oldId] = oldPeer
-			for newId, newPeer := range newMsg.Peers {
-				if newId == oldId {
-					if newPeer.Supersedes(oldPeer) {
-						updatedPeers[oldId] = newPeer
-					}
-					delete(newMsg.Peers, oldId)
-					break
+		// replace stale updates about peers in old message
+		for id, newPeer := range newMsg.Peers {
+			if oldPeer, ok := oldMsg.Peers[id]; ok {
+				if newPeer.Supersedes(oldPeer) {
+					oldMsg.Peers[id] = newPeer
+					oldMsg.TransmitCount = 1
 				}
+				delete(newMsg.Peers, id)
 			}
 		}
-
-		if len(updatedPeers) == 0 {
-			continue
-		}
-		payload := gossip.NewPayloadWithTransmitCount(updatedPeers, oldMsg.TransmitCount)
-		newQueue = append(newQueue, payload)
 	}
-	n.gossipQueue = newQueue
-	if len(newMsg.Peers) == 0 {
+	if len(newMsg.Peers) == 0  || len(n.gossipQueue) == n.maxGossipLen {
 		return
-	}
-	if len(n.gossipQueue) == n.maxGossipLen {
-		n.gossipQueue = n.gossipQueue[1:]
 	}
 	n.gossipQueue = append(n.gossipQueue, newMsg)
 }
