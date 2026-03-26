@@ -17,6 +17,9 @@ func (n *Node) handleGossip(msg *gossip.Message, addr string) {
 
 	slog.Debug("Received Message", "message", *msg)
 
+	n.mu.Lock()
+	defer n.mu.Unlock()
+
 	if msg.Payload != nil {
 		n.handlePayload(msg.Payload, msg.SourceId)
 	}
@@ -182,6 +185,8 @@ func (n *Node) sendGossip(msg *gossip.Message, addr string) {
 }
 
 func (n *Node) attemptConnectToCluster(addr string) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	peers := map[string]peer.Peer{
 		n.id: {
 			Addr:        n.addr,
@@ -203,13 +208,10 @@ func (n *Node) attemptConnectToCluster(addr string) {
 func (n *Node) ConnectToCluster(addr string, attemptPeriod time.Duration) {
 	ticker := time.NewTicker(attemptPeriod)
 	for range ticker.C {
-		n.mu.Lock()
 		if len(n.peers) > 0 {
-			n.mu.Unlock()
 			break
 		}
 		n.attemptConnectToCluster(addr)
-		n.mu.Unlock()
 	}
 }
 
