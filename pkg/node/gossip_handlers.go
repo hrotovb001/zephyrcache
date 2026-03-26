@@ -312,7 +312,6 @@ func StartGossipListener(node *Node) {
 		if err := json.Unmarshal(data, &msg); err != nil {
 			continue
 		}
-
 		node.handleGossip(&msg)
 	}
 }
