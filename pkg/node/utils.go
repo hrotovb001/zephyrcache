@@ -1,10 +1,13 @@
 package node
 
 import (
+	"cmp"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -35,20 +38,20 @@ func OverrideHostPort(addr, port string) string {
 }
 
 // ownerForKey looks up the owner for a key and normalizes the address of the owner
-func (s *Node) OwnerForKey(key string) (ownerHP, selfHP string, ok bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	ownerID := s.ring.Lookup([]byte(key)) // e.g. "Node3"
-	ownerAddr, ok := s.ring.Addr(ownerID) // e.g. "Node3:8080" (what you stored)
+func (n *Node) OwnerForKey(key string) (ownerHP, selfHP string, ok bool) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	ownerID := n.ring.Lookup([]byte(key)) // e.g. "Node3"
+	ownerAddr, ok := n.ring.Addr(ownerID) // e.g. "Node3:8080" (what you stored)
 	if !ok || ownerAddr == "" {
 		return "", "", false
 	}
-	return NormalizeHostPort(ownerAddr, "8080"), NormalizeHostPort(s.addr, "8080"), true
+	return NormalizeHostPort(ownerAddr, "8080"), NormalizeHostPort(n.config.addr, "8080"), true
 }
 
 // replicas looks up the replicas for a key and normalizes their addresses
 func (n *Node) ReplicasForKey(key string) (replicaAddrs []string) {
-	replicaIds := n.ring.LookupN([]byte(key), n.nReplicas) // e.g. "Node3"
+	replicaIds := n.ring.LookupN([]byte(key), n.config.nReplicas) // e.g. "Node3"
 
 	addrs := make([]string, len(replicaIds))
 	for i := range len(replicaIds) {
@@ -80,4 +83,34 @@ func parseTTL(req *http.Request) (time.Duration, error) {
 		return 0, fmt.Errorf("invalid ttl")
 	}
 	return time.Duration(sec) * time.Second, nil
+}
+
+// Generate node config from environment variables
+func Config() *NodeConfig {
+	id := os.Getenv("SELF_ID")
+	addr := os.Getenv("SELF_ADDR")
+	gossipPort := cmp.Or(os.Getenv("GOSSIP_PORT"), "4000")
+	replicationFactor, err := strconv.Atoi(os.Getenv("REPLICATION_FACTOR"))
+	if err != nil {
+		slog.Warn("REPLICATION_FACTOR should be an int, could not parse, defaulting to 3")
+		replicationFactor = 3
+	}
+	return &NodeConfig{
+		maxGossipLen: 50,
+		id:           id,
+		addr:         addr,
+		nReplicas:    replicationFactor,
+		gossipPort:   gossipPort,
+	}
+}
+
+// Generate node config, manual passing of configs for tests/benchmarks
+func ConfigWithOpts(id, addr, gossipPort string, nReplicas, gossipQueueLen int) *NodeConfig {
+	return &NodeConfig{
+		maxGossipLen: gossipQueueLen,
+		id:           id,
+		addr:         addr,
+		nReplicas:    nReplicas,
+		gossipPort:   gossipPort,
+	}
 }
