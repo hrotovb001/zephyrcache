@@ -10,6 +10,8 @@ import (
 	"github.com/ryandielhenn/zephyrcache/pkg/peer"
 )
 
+const GOSSIP_PORT_DEFAULT string = "4000"
+
 func (n *Node) handleGossip(msg *gossip.Message) {
 	if msg == nil {
 		return
@@ -49,6 +51,7 @@ func (n *Node) handlePing(msg *gossip.Message) {
 			Addr:        peerBody.Addr,
 			Status:      peer.Suspected,
 			Incarnation: peerBody.Incarnation,
+			GossipAddr:  peerBody.GossipAddr,
 		}
 	}
 	message := gossip.NewMessage(
@@ -58,7 +61,7 @@ func (n *Node) handlePing(msg *gossip.Message) {
 		msg.OriginId,
 		payload,
 	)
-	n.sendGossip(message, peerBody.Addr)
+	n.sendGossip(message, peerBody.GossipAddr)
 }
 
 func (n *Node) handlePingReq(msg *gossip.Message) {
@@ -74,7 +77,7 @@ func (n *Node) handlePingReq(msg *gossip.Message) {
 		msg.OriginId,
 		payload,
 	)
-	n.sendGossip(message, peerBody.Addr)
+	n.sendGossip(message, peerBody.GossipAddr)
 }
 
 func (n *Node) handlePingAck(msg *gossip.Message) {
@@ -103,7 +106,7 @@ func (n *Node) handlePingAck(msg *gossip.Message) {
 		msg.OriginId,
 		payload,
 	)
-	n.sendGossip(message, peerBody.Addr)
+	n.sendGossip(message, peerBody.GossipAddr)
 }
 
 func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string) {
@@ -138,6 +141,7 @@ func (n *Node) handleAliveStatus(id string, updatedPeer peer.Peer, sourceId stri
 		peers := n.getPeerMap()
 		peers[n.config.id] = peer.Peer{
 			Addr:        n.config.addr,
+			GossipAddr:  n.selfGossipAddr(),
 			Status:      peer.Alive,
 			Incarnation: n.incarnation,
 		}
@@ -169,6 +173,7 @@ func (n *Node) handleSuspectedStatus(id string, updatedPeer peer.Peer) {
 		peers := map[string]peer.Peer{
 			n.config.id: {
 				Addr:        n.config.addr,
+				GossipAddr:  n.selfGossipAddr(),
 				Status:      peer.Alive,
 				Incarnation: n.incarnation,
 			},
@@ -224,13 +229,17 @@ func (n *Node) handleDeadStatus(id string, updatedPeer peer.Peer) {
 	}
 }
 
+func (n *Node) selfGossipAddr() string {
+	return OverrideHostPort(n.config.addr, n.config.gossipPort)
+}
+
 func (n *Node) sendGossip(msg *gossip.Message, addr string) {
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return
 	}
 
-	udpAddr, err := net.ResolveUDPAddr("udp", OverrideHostPort(addr, n.config.gossipPort))
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return
 	}
@@ -258,6 +267,7 @@ func (n *Node) attemptConnectToCluster(addr string) bool {
 	peers := map[string]peer.Peer{
 		n.config.id: {
 			Addr:        n.config.addr,
+			GossipAddr:  n.selfGossipAddr(),
 			Status:      peer.Alive,
 			Incarnation: 0,
 		},
@@ -400,7 +410,7 @@ func runGossipPing(node *Node, cfg *pingerConfig) {
 		node.config.id,
 		payload,
 	)
-	node.sendGossip(message, peerBody.Addr)
+	node.sendGossip(message, peerBody.GossipAddr)
 
 	// send ping req to k random peers after timeout
 	targetPeer := node.targetPeer
@@ -424,7 +434,7 @@ func runGossipPing(node *Node, cfg *pingerConfig) {
 				node.config.id,
 				payload,
 			)
-			node.sendGossip(message, peerBody.Addr)
+			node.sendGossip(message, peerBody.GossipAddr)
 		}
 	})
 }
