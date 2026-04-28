@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pion/dtls/v3"
+
 	"github.com/ryandielhenn/zephyrcache/pkg/gossip"
 	"github.com/ryandielhenn/zephyrcache/pkg/kv"
 	"github.com/ryandielhenn/zephyrcache/pkg/peer"
@@ -20,6 +22,7 @@ type Node struct {
 	ring          *ring.HashRing
 	gossipQueue   []*gossip.MessagePayload
 	peers         map[string]peer.Peer
+	dtlsConns     map[string]*dtls.Conn
 	incarnation   int
 	targetPeer    string
 	timeout       *time.Timer
@@ -46,6 +49,7 @@ func NewNode(config *NodeConfig) *Node {
 		ring:          r,
 		gossipQueue:   make([]*gossip.MessagePayload, 0),
 		peers:         make(map[string]peer.Peer),
+		dtlsConns:     make(map[string]*dtls.Conn),
 		incarnation:   0,
 		config:        config,
 		replicaClient: http.DefaultClient,
@@ -211,4 +215,11 @@ func (n *Node) getKRandomPeers(k int) []string {
 		k = len(peerIds)
 	}
 	return peerIds[:k]
+}
+
+func (n *Node) Cleanup() {
+	for addr, conn := range n.dtlsConns {
+		delete(n.dtlsConns, addr)
+		_ = conn.Close()
+	}
 }

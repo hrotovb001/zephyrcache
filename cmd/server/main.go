@@ -24,8 +24,11 @@ func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: level,
 	})))
+
 	// 2. Connect to cluster
 	n := node.NewNode(node.Config())
+	defer n.Cleanup()
+
 	if err := node.ConfigureTLS(n); err != nil {
 		log.Fatal(err)
 	}

@@ -6,6 +6,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/pion/dtls/v3"
+
 	"github.com/ryandielhenn/zephyrcache/pkg/gossip"
 	"github.com/ryandielhenn/zephyrcache/pkg/peer"
 )
@@ -239,19 +241,47 @@ func (n *Node) sendGossip(msg *gossip.Message, addr string) {
 		return
 	}
 
-	udpAddr, err := net.ResolveUDPAddr("udp", addr)
-	if err != nil {
-		return
-	}
+	conn, ok := n.dtlsConns[addr]
+	if !ok {
+		udpAddr, err := net.ResolveUDPAddr("udp", addr)
+		if err != nil {
+			return
+		}
 
-	conn, err := net.DialUDP("udp", nil, udpAddr)
-	if err != nil {
-		return
+		if n.serverTLS != nil {
+			secureConn, err := dtls.DialWithOptions(
+				"udp",
+				udpAddr,
+				dtls.WithCertificates(n.serverTLS.Certificates...),
+				dtls.WithRootCAs(n.serverTLS.ClientCAs),
+			)
+			if err != nil {
+				return
+			}
+			conn = secureConn
+		} else {
+			// insecure connection for lab testing
+			insecureConn, err := dtls.DialWithOptions(
+				"udp",
+				udpAddr,
+				dtls.WithPSK(func(hint []byte) ([]byte, error) {
+					return []byte("secret-key"), nil
+				}),
+				dtls.WithCipherSuites(dtls.TLS_PSK_WITH_AES_128_CCM),
+			)
+			if err != nil {
+				return
+			}
+			conn = insecureConn
+		}
+
+		n.dtlsConns[addr] = conn
 	}
-	defer func() { _ = conn.Close() }()
 
 	_, err = conn.Write(data)
 	if err != nil {
+		delete(n.dtlsConns, addr)
+		_ = conn.Close()
 		return
 	}
 }
@@ -302,15 +332,49 @@ func StartGossipListener(node *Node) {
 		return
 	}
 
-	conn, err := net.ListenUDP("udp", addr)
-	if err != nil {
-		return
+	var ln net.Listener
+	if node.serverTLS != nil {
+		secureLn, err := dtls.ListenWithOptions(
+			"udp",
+			addr,
+			dtls.WithCertificates(node.serverTLS.Certificates...),
+			dtls.WithClientAuth(dtls.RequireAndVerifyClientCert),
+			dtls.WithClientCAs(node.serverTLS.ClientCAs),
+		)
+		if err != nil {
+			return
+		}
+		ln = secureLn
+	} else {
+		// insecure connection for lab testing
+		insecureLn, err := dtls.ListenWithOptions(
+			"udp",
+			addr,
+			dtls.WithPSK(func(hint []byte) ([]byte, error) {
+				return []byte("secret-key"), nil
+			}),
+			dtls.WithCipherSuites(dtls.TLS_PSK_WITH_AES_128_CCM),
+		)
+		if err != nil {
+			return
+		}
+		ln = insecureLn
 	}
-	defer func() { _ = conn.Close() }()
 
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			continue
+		}
+		go node.handleConnection(conn)
+	}
+}
+
+func (node *Node) handleConnection(conn net.Conn) {
+	defer func() { _ = conn.Close() }()
 	buffer := make([]byte, 1024)
 	for {
-		n, _, err := conn.ReadFromUDP(buffer)
+		n, err := conn.Read(buffer)
 		if err != nil {
 			continue
 		}
