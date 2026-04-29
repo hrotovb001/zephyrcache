@@ -103,10 +103,13 @@ func newTLSNode(t *testing.T, id string, ca *CA, hosts []string, nReplicas int, 
 	}()
 
 	return tlsNode{
-		n:       n,
-		id:      id,
-		addr:    gossipAddr,
-		cleanup: func() { _ = srv.Close() },
+		n:    n,
+		id:   id,
+		addr: gossipAddr,
+		cleanup: func() {
+			_ = srv.Close()
+			n.Cleanup()
+		},
 	}
 }
 
