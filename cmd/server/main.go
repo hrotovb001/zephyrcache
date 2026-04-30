@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 	"time"
-	"context"
 
 	"github.com/ryandielhenn/zephyrcache/internal/telemetry"
 	"github.com/ryandielhenn/zephyrcache/pkg/node"

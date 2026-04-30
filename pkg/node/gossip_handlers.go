@@ -1,11 +1,11 @@
 package node
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net"
 	"time"
-	"context"
 
 	"github.com/pion/dtls/v3"
 
@@ -363,18 +363,18 @@ func StartGossipListener(ctx context.Context, node *Node) {
 	}
 
 	go func() {
-	    <-ctx.Done()
-	    ln.Close()
+		<-ctx.Done()
+		ln.Close()
 	}()
 
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			select {
-			case <- ctx.Done():
+			case <-ctx.Done():
 				return
 			default:
-			  	continue
+				continue
 			}
 		}
 		go node.handleConnection(ctx, conn)
@@ -386,18 +386,18 @@ func (node *Node) handleConnection(ctx context.Context, conn net.Conn) {
 	buffer := make([]byte, 1024)
 
 	go func() {
-	    <-ctx.Done()
-	    conn.Close()
+		<-ctx.Done()
+		conn.Close()
 	}()
 
 	for {
 		n, err := conn.Read(buffer)
 		if err != nil {
 			select {
-			case <- ctx.Done():
+			case <-ctx.Done():
 				return
 			default:
-			  	continue
+				continue
 			}
 		}
 
@@ -542,10 +542,10 @@ func StartGossipPinger(ctx context.Context, node *Node, opts ...pingerOption) {
 
 	for range ticker.C {
 		select {
-    	case <-ticker.C:
-    	    runGossipPing(node, cfg)
-    	case <-ctx.Done():
-    	    return
-    	}
+		case <-ticker.C:
+			runGossipPing(node, cfg)
+		case <-ctx.Done():
+			return
+		}
 	}
 }

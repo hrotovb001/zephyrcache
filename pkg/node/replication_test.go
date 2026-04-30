@@ -2,6 +2,7 @@ package node
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -12,7 +13,6 @@ import (
 	"strconv"
 	"testing"
 	"time"
-	"context"
 )
 
 // tlsNode is a test node that serves /kv/ and /replica/ over HTTPS.
