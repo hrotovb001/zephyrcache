@@ -540,7 +540,7 @@ func StartGossipPinger(ctx context.Context, node *Node, opts ...pingerOption) {
 	ticker := time.NewTicker(cfg.period)
 	defer ticker.Stop()
 
-	for range ticker.C {
+	for {
 		select {
 		case <-ticker.C:
 			runGossipPing(node, cfg)
