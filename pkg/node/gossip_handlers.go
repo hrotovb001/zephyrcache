@@ -364,7 +364,7 @@ func StartGossipListener(ctx context.Context, node *Node) {
 
 	go func() {
 		<-ctx.Done()
-		ln.Close()
+		_ = ln.Close()
 	}()
 
 	for {
@@ -387,7 +387,7 @@ func (node *Node) handleConnection(ctx context.Context, conn net.Conn) {
 
 	go func() {
 		<-ctx.Done()
-		conn.Close()
+		_ = conn.Close()
 	}()
 
 	for {
