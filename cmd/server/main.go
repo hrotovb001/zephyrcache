@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 )
 
 func main() {
+	parent := context.Background()
+
 	membershipService := os.Getenv("DISCOVERY")
 	var level slog.Level
 	if lvl := os.Getenv("LOG_LEVEL"); lvl != "" {
@@ -38,13 +41,16 @@ func main() {
 		defer cleanup()
 	default:
 		slog.Info("DISCOVERY defaulting to the gossip protocol.")
-		go node.StartGossipListener(n)
+
+		ctx, cancel := context.WithCancel(parent)
+		defer cancel()
+
+		go node.StartGossipListener(ctx, n)
 		seedAddr := os.Getenv("SEED_ADDR")
 		if seedAddr != "" {
 			n.ConnectToCluster(seedAddr, 200*time.Millisecond)
 		}
-		go node.StartGossipPinger(
-			n,
+		go node.StartGossipPinger(ctx, n,
 			node.WithPeriod(200*time.Millisecond),
 			node.WithPingTimeout(100*time.Millisecond),
 			node.WithSuspectedTimeout(600*time.Millisecond),

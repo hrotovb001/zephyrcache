@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net"
@@ -324,7 +325,7 @@ func (n *Node) ConnectToCluster(addr string, attemptPeriod time.Duration) {
 	}
 }
 
-func StartGossipListener(node *Node) {
+func StartGossipListener(ctx context.Context, node *Node) {
 	address := net.JoinHostPort("", node.config.gossipPort)
 
 	addr, err := net.ResolveUDPAddr("udp", address)
@@ -361,22 +362,43 @@ func StartGossipListener(node *Node) {
 		ln = insecureLn
 	}
 
+	go func() {
+		<-ctx.Done()
+		_ = ln.Close()
+	}()
+
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			continue
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				continue
+			}
 		}
-		go node.handleConnection(conn)
+		go node.handleConnection(ctx, conn)
 	}
 }
 
-func (node *Node) handleConnection(conn net.Conn) {
+func (node *Node) handleConnection(ctx context.Context, conn net.Conn) {
 	defer func() { _ = conn.Close() }()
 	buffer := make([]byte, 1024)
+
+	go func() {
+		<-ctx.Done()
+		_ = conn.Close()
+	}()
+
 	for {
 		n, err := conn.Read(buffer)
 		if err != nil {
-			continue
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				continue
+			}
 		}
 
 		data := make([]byte, n)
@@ -503,7 +525,7 @@ func runGossipPing(node *Node, cfg *pingerConfig) {
 	})
 }
 
-func StartGossipPinger(node *Node, opts ...pingerOption) {
+func StartGossipPinger(ctx context.Context, node *Node, opts ...pingerOption) {
 	cfg := &pingerConfig{
 		period:           1 * time.Second,
 		pingTimeout:      500 * time.Millisecond,
@@ -518,7 +540,12 @@ func StartGossipPinger(node *Node, opts ...pingerOption) {
 	ticker := time.NewTicker(cfg.period)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		runGossipPing(node, cfg)
+	for {
+		select {
+		case <-ticker.C:
+			runGossipPing(node, cfg)
+		case <-ctx.Done():
+			return
+		}
 	}
 }

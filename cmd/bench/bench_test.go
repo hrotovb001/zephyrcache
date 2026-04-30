@@ -2,6 +2,7 @@ package bench
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -35,6 +36,8 @@ type cacheNode struct {
 }
 
 func startNode(id, seedGossipAddr string) cacheNode {
+	parent := context.Background()
+
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		panic(err)
@@ -50,11 +53,13 @@ func startNode(id, seedGossipAddr string) cacheNode {
 
 	config := node.ConfigWithOpts(id, httpAddr, gossipPort, *nReplicas, 50)
 
+	ctx, cancel := context.WithCancel(parent)
+
 	n := node.NewNode(config)
-	go node.StartGossipListener(n)
-	go node.StartGossipPinger(n,
+	go node.StartGossipListener(ctx, n)
+	go node.StartGossipPinger(ctx, n,
 		node.WithPeriod(50*time.Millisecond),
-		node.WithPingTimeout(50*time.Millisecond),
+		node.WithPingTimeout(25*time.Millisecond),
 		node.WithSuspectedTimeout(150*time.Millisecond),
 	)
 	if seedGossipAddr != "" {
@@ -86,6 +91,8 @@ func startNode(id, seedGossipAddr string) cacheNode {
 		cleanup: func() {
 			_ = srv.Close()
 			_ = uconn.Close()
+			cancel()
+			n.Cleanup()
 		},
 	}
 }

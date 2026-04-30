@@ -2,6 +2,7 @@ package node
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ type tlsNode struct {
 // cert should be valid for (typically []string{"127.0.0.1"}).
 func newTLSNode(t *testing.T, id string, ca *CA, hosts []string, nReplicas int, seedGossipAddr string) tlsNode {
 	t.Helper()
+	parent := context.Background()
 
 	creds, err := GenerateNodeCert(ca, hosts)
 	if err != nil {
@@ -61,10 +63,12 @@ func newTLSNode(t *testing.T, id string, ca *CA, hosts []string, nReplicas int, 
 	n := NewNode(cfg)
 	n.SetReplicaTLS(serverTLS, clientTLS)
 
-	go StartGossipListener(n)
-	go StartGossipPinger(n,
+	ctx, cancel := context.WithCancel(parent)
+
+	go StartGossipListener(ctx, n)
+	go StartGossipPinger(ctx, n,
 		WithPeriod(50*time.Millisecond),
-		WithPingTimeout(50*time.Millisecond),
+		WithPingTimeout(25*time.Millisecond),
 		WithSuspectedTimeout(150*time.Millisecond),
 	)
 	if seedGossipAddr != "" {
@@ -108,6 +112,7 @@ func newTLSNode(t *testing.T, id string, ca *CA, hosts []string, nReplicas int, 
 		addr: gossipAddr,
 		cleanup: func() {
 			_ = srv.Close()
+			cancel()
 			n.Cleanup()
 		},
 	}
