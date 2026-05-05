@@ -3,6 +3,7 @@ package node
 import (
 	"crypto/tls"
 	"log/slog"
+	"maps"
 	"math"
 	"math/rand"
 	"net/http"
@@ -17,6 +18,9 @@ import (
 	"github.com/ryandielhenn/zephyrcache/pkg/peer"
 	"github.com/ryandielhenn/zephyrcache/pkg/ring"
 )
+
+const GOSSIP_PORT_DEFAULT string = "4000"
+const PEER_PORT_DEFAULT string = "443"
 
 type Node struct {
 	kv              *kv.Store
@@ -35,11 +39,13 @@ type Node struct {
 }
 
 type NodeConfig struct {
-	id           string
-	addr         string
-	gossipPort   string
-	maxGossipLen int
-	nReplicas    int
+	id               string
+	addr             string
+	gossipPort       string
+	maxGossipLen     int
+	maxGossipMsgLen  int
+	nReplicas    	 int
+	suspectedTimeout time.Duration
 }
 
 func NewNode(config *NodeConfig) *Node {
@@ -151,10 +157,16 @@ func (n *Node) enqGossip(newMsg *gossip.MessagePayload) {
 			}
 		}
 	}
-	if len(newMsg.Peers) == 0 || len(n.gossipQueue) == n.config.maxGossipLen {
-		return
+	// break up gossip into minimal msgs
+	for id, newPeer := range newMsg.Peers {
+		if len(n.gossipQueue) == n.config.maxGossipLen {
+			return
+		}
+		peers := make(map[string]peer.Peer)
+		peers[id] = newPeer
+		newMsg = gossip.NewPayload(peers, newMsg.TransmitCount != 0)
+		n.gossipQueue = append(n.gossipQueue, newMsg)
 	}
-	n.gossipQueue = append(n.gossipQueue, newMsg)
 }
 
 func (n *Node) prependGossip(msg *gossip.MessagePayload) {
@@ -173,6 +185,22 @@ func (n *Node) removeGossip() *gossip.MessagePayload {
 		n.gossipQueue = append(n.gossipQueue, msg)
 	}
 	return msg
+}
+
+func (n *Node) removeKGossip(k int) *gossip.MessagePayload {
+	if len(n.gossipQueue) < k {
+		k = len(n.gossipQueue)
+	}
+	peers := make(map[string]peer.Peer)
+	for range k {
+		gossip := n.removeGossip()
+		maps.Copy(peers, gossip.Peers)
+	}
+	return gossip.NewPayload(peers, false)
+}
+
+func (n *Node) removeMaxGossip() *gossip.MessagePayload {
+	return n.removeKGossip(n.config.maxGossipMsgLen)
 }
 
 // PeerCount returns the number of alive peers this node knows about.

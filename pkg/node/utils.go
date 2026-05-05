@@ -111,12 +111,14 @@ func Config() *NodeConfig {
 }
 
 // Generate node config, manual passing of configs for tests/benchmarks
-func ConfigWithOpts(id, addr, gossipPort string, nReplicas, gossipQueueLen int) *NodeConfig {
+func ConfigWithOpts(id, addr, gossipPort string, nReplicas, gossipQueueLen int, gossipMessageLen int, suspectedTimeout time.Duration) *NodeConfig {
 	return &NodeConfig{
-		maxGossipLen: gossipQueueLen,
-		id:           id,
-		addr:         addr,
-		nReplicas:    nReplicas,
-		gossipPort:   gossipPort,
+		maxGossipLen:     gossipQueueLen,
+		maxGossipMsgLen:  gossipMessageLen,
+		id:               id,
+		addr:             addr,
+		nReplicas:        nReplicas,
+		gossipPort:       gossipPort,
+		suspectedTimeout: suspectedTimeout,
 	}
 }
