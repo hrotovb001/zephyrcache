@@ -1,13 +1,17 @@
 services:
   prometheus:
     image: prom/prometheus:latest
+    user: root
     command:
       - --config.file=/etc/prometheus/prometheus.yml
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
       - "9090:9090"
     restart: unless-stopped
+    networks:
+      - cluster
 
   grafana:
     image: grafana/grafana-oss:latest
@@ -21,5 +25,18 @@ services:
     restart: unless-stopped
     volumes:
       - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      # Dashboard JSON files; the provisioning provider scans this directory.
+      - ./grafana:/var/lib/grafana/dashboards:ro
+    networks:
+      - cluster
+
 volumes:
   grafana-data:
+
+# Reuses the network created by the cluster compose project (`make up`),
+# so prometheus can resolve `seed` and `node` directly via Docker DNS.
+networks:
+  cluster:
+    name: zephyr_default
+    external: true

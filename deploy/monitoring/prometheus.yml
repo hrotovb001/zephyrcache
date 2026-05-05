@@ -2,6 +2,20 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
-  - job_name: "zephyrcache"
-    static_configs:
-      - targets: ["host.docker.internal:8080"]   # service name if in same compose network
+  - job_name: "zephyrcache-nodes"
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+    relabel_configs:
+      # Only scrape zephyr node/seed containers
+      - source_labels: [__meta_docker_container_name]
+        regex: /(zephyr-(?:node|seed)-\d+)
+        action: keep
+      # Scrape from the container's internal IP on port 8080
+      - source_labels: [__meta_docker_network_ip]
+        target_label: __address__
+        replacement: $1:8080
+      # Use the container name (strip leading slash) as the instance label
+      - source_labels: [__meta_docker_container_name]
+        regex: /(.+)
+        replacement: $1
+        target_label: instance
