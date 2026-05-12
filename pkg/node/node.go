@@ -269,14 +269,40 @@ func (n *Node) syncPeers(newPeers map[string]string) {
 	telemetry.PeersKnown.Set(float64(len(n.ring.Nodes())))
 }
 
-func (n *Node) getPeerMap() map[string]peer.Peer {
-	peerMap := make(map[string]peer.Peer)
+func (n *Node) getPeerMap(numPeers int) map[string]peer.Peer {
+	if numPeers <= 0 {
+		return map[string]peer.Peer{}
+	}
+
+	eligible := make([]struct {
+		id   string
+		body peer.Peer
+	}, 0, len(n.peers))
+
 	for peerId, peerBody := range n.peers {
 		if peerBody.Status == peer.Dead {
 			continue
 		}
-		peerMap[peerId] = peerBody
+		eligible = append(eligible, struct {
+			id   string
+			body peer.Peer
+		}{id: peerId, body: peerBody})
 	}
+
+	if numPeers > len(eligible) {
+		numPeers = len(eligible)
+	}
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r.Shuffle(len(eligible), func(i, j int) {
+		eligible[i], eligible[j] = eligible[j], eligible[i]
+	})
+
+	peerMap := make(map[string]peer.Peer, numPeers)
+	for i := 0; i < numPeers; i++ {
+		peerMap[eligible[i].id] = eligible[i].body
+	}
+
 	return peerMap
 }
 

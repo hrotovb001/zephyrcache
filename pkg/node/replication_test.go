@@ -220,7 +220,7 @@ func TestReplicationDelete(t *testing.T) {
 		t.Fatalf("GenerateCA: %v", err)
 	}
 
-	const numNodes = 3
+	const numNodes = 30
 	nodes := make([]tlsNode, numNodes)
 	nodes[0] = newTLSNode(t, "node0", ca, []string{"127.0.0.1"}, numNodes, "")
 	for i := 1; i < numNodes; i++ {

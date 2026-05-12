@@ -9,7 +9,6 @@ type Message struct {
 	SubjectId  string          `json:"sub_id"`
 	SourceId   string          `json:"src_id"`
 	OriginId   string          `json:"orig_id"`
-	SourcePeer peer.Peer       `json:"src_peer"`
 	Payload    *MessagePayload `json:"payload"`
 }
 
@@ -26,12 +25,11 @@ const (
 	PingAck MessageType = "ping_ack"
 )
 
-func NewMessage(msgType MessageType, subjectId, sourceId, originId string, sourcePeer peer.Peer, payload *MessagePayload) *Message {
+func NewMessage(msgType MessageType, subjectId, sourceId, originId string, payload *MessagePayload) *Message {
 	return &Message{
 		Type:       msgType,
 		SubjectId:  subjectId,
 		SourceId:   sourceId,
-		SourcePeer: sourcePeer,
 		OriginId:   originId,
 		Payload:    payload,
 	}

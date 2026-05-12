@@ -25,7 +25,7 @@ func (n *Node) handleGossip(msg *gossip.Message) {
 	defer n.mu.Unlock()
 
 	if msg.Payload != nil {
-		n.handlePayload(msg.Payload)
+		n.handlePayload(msg.Payload, msg.SourceId)
 	}
 
 	switch msg.Type {
@@ -41,19 +41,7 @@ func (n *Node) handleGossip(msg *gossip.Message) {
 func (n *Node) handlePing(msg *gossip.Message) {
 	peerBody, ok := n.peers[msg.SourceId]
 	if !ok {
-		// broadcast peer alive
-		peerBody = msg.SourcePeer
-		n.peers[msg.SourceId] = peerBody
-		peers := make(map[string]peer.Peer)
-		peers[msg.SourceId] = peerBody
-		payload := gossip.NewPayload(peers, true)
-		n.enqGossip(payload)
-		// repond with member list
-		peers = n.getPeerMap()
-		peers[n.config.id] = n.selfPeer()
-		delete(peers, msg.SourceId)
-		payload = gossip.NewPayload(peers, true)
-		n.prependGossip(payload)
+		return
 	}
 	payload := n.removeMaxGossip()
 	if peerBody.Status == peer.Dead {
@@ -73,10 +61,8 @@ func (n *Node) handlePing(msg *gossip.Message) {
 		msg.SubjectId,
 		n.config.id,
 		msg.OriginId,
-		n.selfPeer(),
 		payload,
 	)
-	// fmt.Printf("return addr %v\n", msg.SourcePeer.GossipAddr)
 	n.sendGossip(message, peerBody.GossipAddr)
 }
 
@@ -91,7 +77,6 @@ func (n *Node) handlePingReq(msg *gossip.Message) {
 		msg.SubjectId,
 		n.config.id,
 		msg.OriginId,
-		n.selfPeer(),
 		payload,
 	)
 	n.sendGossip(message, peerBody.GossipAddr)
@@ -121,13 +106,12 @@ func (n *Node) handlePingAck(msg *gossip.Message) {
 		msg.SubjectId,
 		n.config.id,
 		msg.OriginId,
-		n.selfPeer(),
 		payload,
 	)
 	n.sendGossip(message, peerBody.GossipAddr)
 }
 
-func (n *Node) handlePayload(msg *gossip.MessagePayload) {
+func (n *Node) handlePayload(msg *gossip.MessagePayload, sourceId string) {
 	if msg == nil {
 		return
 	}
@@ -137,7 +121,7 @@ func (n *Node) handlePayload(msg *gossip.MessagePayload) {
 	for id, updatedPeer := range msg.Peers {
 		switch updatedPeer.Status {
 		case peer.Alive:
-			n.handleAliveStatus(id, updatedPeer)
+			n.handleAliveStatus(id, updatedPeer, sourceId)
 		case peer.Suspected:
 			n.handleSuspectedStatus(id, updatedPeer)
 		case peer.Dead:
@@ -146,15 +130,30 @@ func (n *Node) handlePayload(msg *gossip.MessagePayload) {
 	}
 }
 
-func (n *Node) handleAliveStatus(id string, updatedPeer peer.Peer) {
+func (n *Node) handleAliveStatus(id string, updatedPeer peer.Peer, sourceId string) {
 	// drop payloads about yourself
 	if id == n.config.id {
 		return
 	}
 
+	// handle join requests
+	// when new nodes sends alive status for itself respond with peers
+	currentPeer, ok := n.peers[id]
+	if !ok && id == sourceId {
+		peers := n.getPeerMap(n.config.maxGossipMsgLen)
+		peers[n.config.id] = peer.Peer{
+			Addr:        n.config.addr,
+			GossipAddr:  n.selfGossipAddr(),
+			Status:      peer.Alive,
+			Incarnation: n.incarnation,
+		}
+		delete(peers, id)
+		payload := gossip.NewPayload(peers, false)
+		n.prependGossip(payload)
+	}
+
 	// determine whether message is stale or not
 	// update peer status if not stale and propagate update to other nodes
-	currentPeer, ok := n.peers[id]
 	shouldUpdate := !ok || updatedPeer.Supersedes(currentPeer)
 	if shouldUpdate {
 		n.setPeer(id, updatedPeer)
@@ -245,6 +244,7 @@ func (n *Node) selfPeer() peer.Peer {
 }
 
 func (n *Node) sendGossip(msg *gossip.Message, addr string) {
+	msg.Payload.Peers[n.config.id] = n.selfPeer()
 	data, err := json.Marshal(msg)
 	if err != nil {
 		slog.Error("sendGossip marshal failed", "addr", addr, "err", err)
@@ -324,7 +324,6 @@ func (n *Node) attemptConnectToCluster(addr string) bool {
 		"",
 		n.config.id,
 		n.config.id,
-		n.selfPeer(),
 		payload,
 	)
 	n.sendGossip(message, addr)
@@ -510,7 +509,6 @@ func runGossipPing(node *Node, cfg *pingerConfig) {
 		node.targetPeer,
 		node.config.id,
 		node.config.id,
-		node.selfPeer(),
 		payload,
 	)
 	node.sendGossip(message, peerBody.GossipAddr)
@@ -535,7 +533,6 @@ func runGossipPing(node *Node, cfg *pingerConfig) {
 				targetPeer,
 				node.config.id,
 				node.config.id,
-				node.selfPeer(),
 				payload,
 			)
 			node.sendGossip(message, peerBody.GossipAddr)
