@@ -139,7 +139,7 @@ func (n *Node) handleAliveStatus(id string, updatedPeer peer.Peer, sourceId stri
 	// when new nodes sends alive status for itself respond with peers
 	currentPeer, ok := n.peers[id]
 	if !ok && id == sourceId {
-		peers := n.getPeerMap(n.config.maxGossipMsgLen)
+		peers := n.getPeerSubset(n.config.maxGossipMsgLen)
 		peers[n.config.id] = peer.Peer{
 			Addr:        n.config.addr,
 			GossipAddr:  n.selfGossipAddr(),

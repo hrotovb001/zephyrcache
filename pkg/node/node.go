@@ -269,7 +269,7 @@ func (n *Node) syncPeers(newPeers map[string]string) {
 	telemetry.PeersKnown.Set(float64(len(n.ring.Nodes())))
 }
 
-func (n *Node) getPeerMap(numPeers int) map[string]peer.Peer {
+func (n *Node) getPeerSubset(numPeers int) map[string]peer.Peer {
 	if numPeers <= 0 {
 		return map[string]peer.Peer{}
 	}
