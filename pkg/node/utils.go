@@ -102,12 +102,12 @@ func Config() *NodeConfig {
 		replicationFactor = 3
 	}
 	return &NodeConfig{
-		maxGossipLen: 50,
-		id:           id,
-		addr:         addr,
-		nReplicas:    replicationFactor,
-		gossipPort:   gossipPort,
-		suspectedTimeout: 600*time.Millisecond,
+		maxGossipLen:     50,
+		id:               id,
+		addr:             addr,
+		nReplicas:        replicationFactor,
+		gossipPort:       gossipPort,
+		suspectedTimeout: 600 * time.Millisecond,
 	}
 }
 
