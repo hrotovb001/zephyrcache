@@ -5,11 +5,11 @@ import (
 )
 
 type Message struct {
-	Type       MessageType     `json:"type"`
-	SubjectId  string          `json:"sub_id"`
-	SourceId   string          `json:"src_id"`
-	OriginId   string          `json:"orig_id"`
-	Payload    *MessagePayload `json:"payload"`
+	Type      MessageType     `json:"type"`
+	SubjectId string          `json:"sub_id"`
+	SourceId  string          `json:"src_id"`
+	OriginId  string          `json:"orig_id"`
+	Payload   *MessagePayload `json:"payload"`
 }
 
 type MessagePayload struct {
@@ -27,11 +27,11 @@ const (
 
 func NewMessage(msgType MessageType, subjectId, sourceId, originId string, payload *MessagePayload) *Message {
 	return &Message{
-		Type:       msgType,
-		SubjectId:  subjectId,
-		SourceId:   sourceId,
-		OriginId:   originId,
-		Payload:    payload,
+		Type:      msgType,
+		SubjectId: subjectId,
+		SourceId:  sourceId,
+		OriginId:  originId,
+		Payload:   payload,
 	}
 }
 

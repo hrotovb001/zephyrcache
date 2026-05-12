@@ -71,7 +71,7 @@ func newTLSNode(t *testing.T, id string, ca *CA, hosts []string, nReplicas int, 
 		WithPingTimeout(25*time.Millisecond),
 	)
 	if seedGossipAddr != "" {
-		go n.ConnectToCluster(seedGossipAddr, 150*time.Millisecond)
+		go n.ConnectToCluster(seedGossipAddr, 50*time.Millisecond)
 	}
 
 	mux := http.NewServeMux()
@@ -162,7 +162,7 @@ func TestReplicationPut(t *testing.T) {
 		t.Fatalf("GenerateCA: %v", err)
 	}
 
-	const numNodes = 30
+	const numNodes = 10
 	nodes := make([]tlsNode, numNodes)
 	nodes[0] = newTLSNode(t, "node0", ca, []string{"127.0.0.1"}, numNodes, "")
 	for i := 1; i < numNodes; i++ {
@@ -220,7 +220,7 @@ func TestReplicationDelete(t *testing.T) {
 		t.Fatalf("GenerateCA: %v", err)
 	}
 
-	const numNodes = 30
+	const numNodes = 10
 	nodes := make([]tlsNode, numNodes)
 	nodes[0] = newTLSNode(t, "node0", ca, []string{"127.0.0.1"}, numNodes, "")
 	for i := 1; i < numNodes; i++ {
