@@ -44,7 +44,7 @@ type NodeConfig struct {
 	gossipPort       string
 	maxGossipLen     int
 	maxGossipMsgLen  int
-	nReplicas    	 int
+	nReplicas        int
 	suspectedTimeout time.Duration
 }
 

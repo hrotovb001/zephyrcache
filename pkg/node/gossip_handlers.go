@@ -432,9 +432,9 @@ func (node *Node) handleConnection(ctx context.Context, conn net.Conn) {
 }
 
 type pingerConfig struct {
-	period           time.Duration
-	pingTimeout      time.Duration
-	k                int
+	period      time.Duration
+	pingTimeout time.Duration
+	k           int
 }
 
 type pingerOption func(*pingerConfig)
@@ -539,9 +539,9 @@ func runGossipPing(node *Node, cfg *pingerConfig) {
 
 func StartGossipPinger(ctx context.Context, node *Node, opts ...pingerOption) {
 	cfg := &pingerConfig{
-		period:           1 * time.Second,
-		pingTimeout:      500 * time.Millisecond,
-		k:                3,
+		period:      1 * time.Second,
+		pingTimeout: 500 * time.Millisecond,
+		k:           3,
 	}
 
 	for _, opt := range opts {
