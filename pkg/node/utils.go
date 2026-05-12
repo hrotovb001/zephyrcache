@@ -103,6 +103,7 @@ func Config() *NodeConfig {
 	}
 	return &NodeConfig{
 		maxGossipLen:     50,
+		maxGossipMsgLen:  50,
 		id:               id,
 		addr:             addr,
 		nReplicas:        replicationFactor,
