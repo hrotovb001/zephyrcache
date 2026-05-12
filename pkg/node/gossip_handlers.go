@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net"
 	"time"
-	"fmt"
 
 	"github.com/pion/dtls/v3"
 
@@ -401,6 +400,8 @@ func StartGossipListener(ctx context.Context, node *Node) {
 
 func (node *Node) handleConnection(ctx context.Context, conn net.Conn) {
 	defer func() { _ = conn.Close() }()
+
+	// TODO: non configurable/config determined buffer can cause issues
 	buffer := make([]byte, 8192)
 
 	go func() {
@@ -410,9 +411,6 @@ func (node *Node) handleConnection(ctx context.Context, conn net.Conn) {
 
 	for {
 		n, err := conn.Read(buffer)
-		// if n > 4096 {
-		// 	fmt.Printf("bytes read %v\n", n)
-		// }
 		if err != nil {
 			select {
 			case <-ctx.Done():
@@ -485,7 +483,6 @@ func runGossipPing(node *Node, cfg *pingerConfig) {
 				if !ok || peerBody.Status != peer.Suspected {
 					return
 				}
-				fmt.Printf("%v declared %v dead\n", node.config.id, targetPeer)
 				peerBody.Status = peer.Dead
 				node.setPeer(targetPeer, peerBody)
 				peers := map[string]peer.Peer{
