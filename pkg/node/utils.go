@@ -107,6 +107,7 @@ func Config() *NodeConfig {
 		addr:         addr,
 		nReplicas:    replicationFactor,
 		gossipPort:   gossipPort,
+		suspectedTimeout: 600*time.Millisecond,
 	}
 }
 
