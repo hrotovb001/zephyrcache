@@ -162,10 +162,9 @@ func (n *Node) enqGossip(newMsg *gossip.MessagePayload) {
 		if len(n.gossipQueue) == n.config.maxGossipLen {
 			return
 		}
-		peers := make(map[string]peer.Peer)
-		peers[id] = newPeer
-		newMsg = gossip.NewPayload(peers, newMsg.TransmitCount != 0)
-		n.gossipQueue = append(n.gossipQueue, newMsg)
+		peers := map[string]peer.Peer{id: newPeer}
+		n.gossipQueue = append(n.gossipQueue,
+			gossip.NewPayload(peers, newMsg.TransmitCount != 0))
 	}
 }
 
@@ -193,8 +192,8 @@ func (n *Node) removeKGossip(k int) *gossip.MessagePayload {
 	}
 	peers := make(map[string]peer.Peer)
 	for range k {
-		gossip := n.removeGossip()
-		maps.Copy(peers, gossip.Peers)
+		msg := n.removeGossip()
+		maps.Copy(peers, msg.Peers)
 	}
 	return gossip.NewPayload(peers, false)
 }
@@ -293,8 +292,7 @@ func (n *Node) getPeerSubset(numPeers int) map[string]peer.Peer {
 		numPeers = len(eligible)
 	}
 
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	r.Shuffle(len(eligible), func(i, j int) {
+	rand.Shuffle(len(eligible), func(i, j int) {
 		eligible[i], eligible[j] = eligible[j], eligible[i]
 	})
 
